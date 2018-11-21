@@ -42,9 +42,9 @@ public interface BeaconConstants {
     int SHARD_COUNT = 1024;
 
     /**
-     * Minimal number of slots in dynasty
+     * Minimal number of slots between two adjacent changes of validator set
      */
-    long MIN_DYNASTY_LENGTH = 256;
+    long MIN_VALIDATOR_SET_CHANGE_INTERVAL = 256;
 
     /**
      * Validator registration deposit in wei

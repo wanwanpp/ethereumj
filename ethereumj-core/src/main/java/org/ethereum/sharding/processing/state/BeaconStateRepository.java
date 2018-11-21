@@ -93,15 +93,14 @@ public class BeaconStateRepository implements StateRepository {
     CrystallizedState fromFlattened(CrystallizedState.Flattened flattened) {
         ValidatorSet validatorSet = new TrieValidatorSet(validatorSrc, validatorIndexSrc,
                 flattened.getValidatorSetHash());
-        Dynasty dynasty = new Dynasty(validatorSet, flattened.getCommittees(),
-                flattened.getCurrentDynasty(),flattened.getDynastySeed(),
-                flattened.getDynastySeedLastReset(), flattened.getDynastyStart());
+        ValidatorState validatorState = new ValidatorState(validatorSet, flattened.getCommittees(),
+                flattened.getNextShufflingSeed(), flattened.getValidatorSetChangeSlot());
 
         Finality finality = new Finality(flattened.getLastJustifiedSlot(),
                 flattened.getJustifiedStreak(), flattened.getLastFinalizedSlot());
 
         return new CrystallizedState(flattened.getLastStateRecalc(),
-                dynasty, finality, flattened.getCrosslinks());
+                validatorState, finality, flattened.getCrosslinks());
     }
 
     @Override

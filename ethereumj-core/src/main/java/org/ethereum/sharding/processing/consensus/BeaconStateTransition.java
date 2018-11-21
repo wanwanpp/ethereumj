@@ -21,16 +21,13 @@ import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.state.ActiveState;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.CrystallizedState;
-import org.ethereum.sharding.processing.state.Dynasty;
+import org.ethereum.sharding.processing.state.ValidatorState;
 import org.ethereum.sharding.processing.state.Finality;
 import org.ethereum.sharding.pubsub.Publisher;
 import org.ethereum.sharding.registration.ValidatorRepository;
 import org.ethereum.sharding.validator.BeaconAttester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
 import static org.ethereum.sharding.pubsub.Events.onBeaconAttestationIncluded;
@@ -45,22 +42,22 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
 
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
-    StateTransition<Dynasty> dynastyTransition;
+    StateTransition<ValidatorState> validatorStateTransition;
     StateTransition<Finality> finalityTransition;
     BeaconAttester beaconAttester;
     Publisher publisher;
 
     public BeaconStateTransition(ValidatorRepository validatorRepository, BeaconAttester beaconAttester,
                                  Publisher publisher) {
-        this.dynastyTransition = new DynastyTransition(new ValidatorSetTransition(validatorRepository));
+        this.validatorStateTransition = new ValidatorStateTransition(new ValidatorSetTransition(validatorRepository));
         this.finalityTransition = new FinalityTransition();
         this.beaconAttester = beaconAttester;
         this.publisher = publisher;
     }
 
-    public BeaconStateTransition(StateTransition<Dynasty> dynastyTransition,
+    public BeaconStateTransition(StateTransition<ValidatorState> validatorStateTransition,
                                  StateTransition<Finality> finalityTransition) {
-        this.dynastyTransition = dynastyTransition;
+        this.validatorStateTransition = validatorStateTransition;
         this.finalityTransition = finalityTransition;
     }
 
@@ -78,10 +75,10 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
                     block.getSlotNumber(), crystallized.getLastStateRecalc());
 
             Finality finality = finalityTransition.applyBlock(block, crystallized.getFinality());
-            Dynasty dynasty = dynastyTransition.applyBlock(block, crystallized.getDynasty());
+            ValidatorState validatorState = validatorStateTransition.applyBlock(block, crystallized.getValidatorState());
 
             crystallized = crystallized
-                    .withDynasty(dynasty)
+                    .withValidatorState(validatorState)
                     .withLastStateRecalc(cycleStartSlot(block))
                     .withFinality(finality);
             if (publisher != null) {

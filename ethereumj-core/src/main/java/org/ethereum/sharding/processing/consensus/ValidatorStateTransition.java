@@ -20,34 +20,35 @@ package org.ethereum.sharding.processing.consensus;
 import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.Committee;
-import org.ethereum.sharding.processing.state.Dynasty;
+import org.ethereum.sharding.processing.state.ValidatorState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.ethereum.sharding.processing.consensus.BeaconConstants.MIN_DYNASTY_LENGTH;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.MIN_VALIDATOR_SET_CHANGE_INTERVAL;
 import static org.ethereum.sharding.util.BeaconUtils.cycleStartSlot;
 
 /**
  * @author Mikhail Kalinin
  * @since 12.09.2018
  */
-public class DynastyTransition implements StateTransition<Dynasty> {
+public class ValidatorStateTransition implements StateTransition<ValidatorState> {
 
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
     StateTransition<ValidatorSet> validatorSetTransition;
     CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
 
-    public DynastyTransition(StateTransition<ValidatorSet> validatorSetTransition) {
+    public ValidatorStateTransition(StateTransition<ValidatorSet> validatorSetTransition) {
         this.validatorSetTransition = validatorSetTransition;
     }
 
     @Override
-    public Dynasty applyBlock(Beacon block, Dynasty to) {
-        if (block.getSlotNumber() - to.getStartSlot() < MIN_DYNASTY_LENGTH)
+    public ValidatorState applyBlock(Beacon block, ValidatorState to) {
+        if (block.getSlotNumber() - to.getValidatorSetChangeSlot() < MIN_VALIDATOR_SET_CHANGE_INTERVAL)
             return to;
 
-        logger.info("Calculate new dynasty, slot: {}, prev slot: {}", block.getSlotNumber(), to.getStartSlot());
+        logger.info("Calculate new validator state, slot: {}, prev slot: {}",
+                block.getSlotNumber(), to.getValidatorSetChangeSlot());
 
         // validator set transition
         ValidatorSet validatorSet = validatorSetTransition.applyBlock(block, to.getValidatorSet());
@@ -60,8 +61,7 @@ public class DynastyTransition implements StateTransition<Dynasty> {
         // the reason is that proposer does not know hash of newly created block before it applies that block to a state
         Committee[][] committees = committeeFactory.create(block.getParentHash(), validators, startShard);
 
-        return to.withNumberIncrement(1L)
-                .withStartSlot(cycleStartSlot(block))
+        return to.withStartSlot(cycleStartSlot(block))
                 .withValidatorSet(validatorSet)
                 .withCommittees(committees);
     }

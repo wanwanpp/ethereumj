@@ -18,7 +18,6 @@
 package org.ethereum.sharding.processing.state;
 
 import org.ethereum.datasource.Serializer;
-import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.util.RLP;
 import org.ethereum.util.RLPList;
@@ -37,24 +36,24 @@ public class CrystallizedState {
 
     /* Slot number that the state was calculated at */
     private final long lastStateRecalc;
-    /* Current dynasty */
-    private final Dynasty dynasty;
+    /* Current validator state */
+    private final ValidatorState validatorState;
     /* Current finality state */
     private final Finality finality;
     /* The most recent crosslinks for each shard */
     private final Crosslink[] crosslinks;
 
-    public CrystallizedState(long lastStateRecalc, Dynasty dynasty, Finality finality, Crosslink[] crosslinks) {
+    public CrystallizedState(long lastStateRecalc, ValidatorState validatorState, Finality finality, Crosslink[] crosslinks) {
         this.lastStateRecalc = lastStateRecalc;
-        this.dynasty = dynasty;
+        this.validatorState = validatorState;
         this.finality = finality;
         this.crosslinks = crosslinks;
     }
 
     public Flattened flatten() {
-        return new Flattened(dynasty.getValidatorSet().getHash(), lastStateRecalc, dynasty.getCommittees(),
+        return new Flattened(validatorState.getValidatorSet().getHash(), lastStateRecalc, validatorState.getCommittees(),
                 finality.getLastJustifiedSlot(), finality.getJustifiedStreak(), finality.getLastFinalizedSlot(),
-                dynasty.getNumber(), crosslinks, dynasty.getSeed(), dynasty.getSeedLastReset(), dynasty.getStartSlot());
+                crosslinks, validatorState.getNextShufflingSeed(), validatorState.getValidatorSetChangeSlot());
     }
 
     public byte[] getHash() {
@@ -65,8 +64,8 @@ public class CrystallizedState {
         return lastStateRecalc;
     }
 
-    public Dynasty getDynasty() {
-        return dynasty;
+    public ValidatorState getValidatorState() {
+        return validatorState;
     }
 
     public Finality getFinality() {
@@ -77,24 +76,24 @@ public class CrystallizedState {
         return crosslinks;
     }
 
-    public CrystallizedState withDynasty(Dynasty dynasty) {
-        return new CrystallizedState(lastStateRecalc, dynasty, finality, crosslinks);
+    public CrystallizedState withValidatorState(ValidatorState validatorState) {
+        return new CrystallizedState(lastStateRecalc, validatorState, finality, crosslinks);
     }
 
     public CrystallizedState withLastStateRecalc(long lastStateRecalc) {
-        return new CrystallizedState(lastStateRecalc, dynasty, finality, crosslinks);
+        return new CrystallizedState(lastStateRecalc, validatorState, finality, crosslinks);
     }
 
     public CrystallizedState withLastStateRecalcIncrement(long addition) {
-        return new CrystallizedState(lastStateRecalc + addition, dynasty, finality, crosslinks);
+        return new CrystallizedState(lastStateRecalc + addition, validatorState, finality, crosslinks);
     }
 
     public CrystallizedState withCrosslinks(Crosslink[] crosslinks) {
-        return new CrystallizedState(lastStateRecalc, dynasty, finality, crosslinks);
+        return new CrystallizedState(lastStateRecalc, validatorState, finality, crosslinks);
     }
 
     public CrystallizedState withFinality(Finality finality) {
-        return new CrystallizedState(lastStateRecalc, dynasty, finality, crosslinks);
+        return new CrystallizedState(lastStateRecalc, validatorState, finality, crosslinks);
     }
 
     public static class Flattened {
@@ -102,9 +101,7 @@ public class CrystallizedState {
         private final byte[] validatorSetHash;
         /* Slot number that the state was calculated at */
         private final long lastStateRecalc;
-        /** What active validators are part of the attester set,
-         * at what height, and in what shard.
-         * Starts at slot {@link #lastStateRecalc} - {@link BeaconConstants#CYCLE_LENGTH} */
+        /** Committee members and their assigned shard, per slot */
         private final Committee[][] committees;
         /* The last justified slot */
         private final long lastJustifiedSlot;
@@ -112,31 +109,25 @@ public class CrystallizedState {
         private final long justifiedStreak;
         /* The last finalized slot */
         private final long lastFinalizedSlot;
-        /* The number of dynasty transitions including this one */
-        private final long currentDynasty;
         /* The most recent crosslinks for each shard */
         private final Crosslink[] crosslinks;
-        /* Used to select the committees for each shard */
-        private final byte[] dynastySeed;
-        /* Last dynasty the seed was reset */
-        private final long dynastySeedLastReset;
-        /* Slot that current dynasty is stared from */
-        private final long dynastyStart;
+        /* Randao seed used that will be used for next shuffling */
+        private final byte[] nextShufflingSeed;
+        /* Slot of last validator set change */
+        private final long validatorSetChangeSlot;
 
         public Flattened(byte[] validatorSetHash, long lastStateRecalc, Committee[][] committees, long lastJustifiedSlot,
-                         long justifiedStreak, long lastFinalizedSlot, long currentDynasty, Crosslink[] crosslinks,
-                         byte[] dynastySeed, long dynastySeedLastReset, long dynastyStart) {
+                         long justifiedStreak, long lastFinalizedSlot, Crosslink[] crosslinks,
+                         byte[] nextShufflingSeed, long validatorSetChangeSlot) {
             this.validatorSetHash = validatorSetHash;
             this.lastStateRecalc = lastStateRecalc;
             this.committees = committees;
             this.lastJustifiedSlot = lastJustifiedSlot;
             this.justifiedStreak = justifiedStreak;
             this.lastFinalizedSlot = lastFinalizedSlot;
-            this.currentDynasty = currentDynasty;
             this.crosslinks = crosslinks;
-            this.dynastySeed = dynastySeed;
-            this.dynastySeedLastReset = dynastySeedLastReset;
-            this.dynastyStart = dynastyStart;
+            this.nextShufflingSeed = nextShufflingSeed;
+            this.validatorSetChangeSlot = validatorSetChangeSlot;
         }
 
         public Flattened(byte[] encoded) {
@@ -147,13 +138,11 @@ public class CrystallizedState {
             this.lastJustifiedSlot = byteArrayToLong(list.get(2).getRLPData());
             this.justifiedStreak = byteArrayToLong(list.get(3).getRLPData());
             this.lastFinalizedSlot = byteArrayToLong(list.get(4).getRLPData());
-            this.currentDynasty = byteArrayToLong(list.get(5).getRLPData());
-            this.dynastyStart = byteArrayToLong(list.get(6).getRLPData());
-            this.dynastySeed = list.get(7).getRLPData();
-            this.dynastySeedLastReset = byteArrayToLong(list.get(8).getRLPData());
+            this.validatorSetChangeSlot = byteArrayToLong(list.get(5).getRLPData());
+            this.nextShufflingSeed = list.get(6).getRLPData();
 
-            if (!isSingleZero(list.get(9).getRLPData())) {
-                RLPList committeeList = RLP.unwrapList(list.get(9).getRLPData());
+            if (!isSingleZero(list.get(7).getRLPData())) {
+                RLPList committeeList = RLP.unwrapList(list.get(7).getRLPData());
                 this.committees = new Committee[committeeList.size()][];
                 for (int i = 0; i < committeeList.size(); i++) {
                     if (!isSingleZero(committeeList.get(i).getRLPData())) {
@@ -171,8 +160,8 @@ public class CrystallizedState {
                 this.committees = new Committee[0][];
             }
 
-            if (!isSingleZero(list.get(10).getRLPData())) {
-                RLPList crosslinkList = RLP.unwrapList(list.get(10).getRLPData());
+            if (!isSingleZero(list.get(8).getRLPData())) {
+                RLPList crosslinkList = RLP.unwrapList(list.get(8).getRLPData());
                 this.crosslinks = new Crosslink[crosslinkList.size()];
                 for (int i = 0; i < crosslinkList.size(); i++)
                     this.crosslinks[i] = new Crosslink(crosslinkList.get(i).getRLPData());
@@ -203,8 +192,8 @@ public class CrystallizedState {
 
             return RLP.wrapList(validatorSetHash, longToBytesNoLeadZeroes(lastStateRecalc),
                     longToBytesNoLeadZeroes(lastJustifiedSlot), longToBytesNoLeadZeroes(justifiedStreak),
-                    longToBytesNoLeadZeroes(lastFinalizedSlot), longToBytesNoLeadZeroes(currentDynasty),
-                    longToBytesNoLeadZeroes(dynastyStart), dynastySeed, longToBytesNoLeadZeroes(dynastySeedLastReset),
+                    longToBytesNoLeadZeroes(lastFinalizedSlot),
+                    longToBytesNoLeadZeroes(validatorSetChangeSlot), nextShufflingSeed,
                     encodedCommittees.length > 0 ? RLP.wrapList(encodedCommittees) : ZERO_BYTE_ARRAY,
                     encodedCrosslinks.length > 0 ? RLP.wrapList(encodedCrosslinks) : ZERO_BYTE_ARRAY);
         }
@@ -237,24 +226,16 @@ public class CrystallizedState {
             return lastFinalizedSlot;
         }
 
-        public long getCurrentDynasty() {
-            return currentDynasty;
-        }
-
         public Crosslink[] getCrosslinks() {
             return crosslinks;
         }
 
-        public byte[] getDynastySeed() {
-            return dynastySeed;
+        public byte[] getNextShufflingSeed() {
+            return nextShufflingSeed;
         }
 
-        public long getDynastySeedLastReset() {
-            return dynastySeedLastReset;
-        }
-
-        public long getDynastyStart() {
-            return dynastyStart;
+        public long getValidatorSetChangeSlot() {
+            return validatorSetChangeSlot;
         }
 
         public static org.ethereum.datasource.Serializer<Flattened, byte[]> getSerializer() {
@@ -262,8 +243,8 @@ public class CrystallizedState {
         }
 
         public static Flattened empty() {
-            return new Flattened(ValidatorSet.EMPTY_HASH, 0, new Committee[0][], 0L, 0L, 0L, 0L,
-                    new Crosslink[0], new byte[32], 0L, 0L);
+            return new Flattened(ValidatorSet.EMPTY_HASH, 0, new Committee[0][], 0L, 0L, 0L,
+                    new Crosslink[0], new byte[32], 0L);
         }
 
         public static final org.ethereum.datasource.Serializer<Flattened, byte[]> Serializer = new Serializer<Flattened, byte[]>() {

@@ -62,11 +62,11 @@ public class GenesisTransitionTest {
         GenesisTransition transition = new GenesisTransition(validatorRepository);
         BeaconState newState = transition.applyBlock(genesis, stateRepository.getEmpty());
 
-        checkValidatorSet(newState.getCrystallizedState().getDynasty().getValidatorSet(), v1, v3, v4);
+        checkValidatorSet(newState.getCrystallizedState().getValidatorState().getValidatorSet(), v1, v3, v4);
 
         // check committees
         int cnt = 0;
-        for (Committee[] slot : newState.getCrystallizedState().getDynasty().getCommittees()) {
+        for (Committee[] slot : newState.getCrystallizedState().getValidatorState().getCommittees()) {
             if (slot[0].getValidators().length > 0) {
                 cnt += 1;
                 assertEquals(0L, slot[0].getShardId());

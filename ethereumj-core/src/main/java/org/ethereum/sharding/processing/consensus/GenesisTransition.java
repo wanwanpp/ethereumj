@@ -26,7 +26,7 @@ import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.Crosslink;
 import org.ethereum.sharding.processing.state.CrystallizedState;
-import org.ethereum.sharding.processing.state.Dynasty;
+import org.ethereum.sharding.processing.state.ValidatorState;
 import org.ethereum.sharding.registration.ValidatorRepository;
 import org.spongycastle.util.encoders.Hex;
 
@@ -65,18 +65,17 @@ public class GenesisTransition implements StateTransition<BeaconState> {
         }
 
         ValidatorSet validatorSet = validatorSetTransition.applyBlock(block,
-                to.getCrystallizedState().getDynasty().getValidatorSet());
+                to.getCrystallizedState().getValidatorState().getValidatorSet());
 
         Committee[][] committees = committeeFactory.create(genesis.getRandaoReveal(),
                 validatorSet.getActiveIndices(), 0);
 
-        Dynasty dynasty = to.getCrystallizedState().getDynasty()
+        ValidatorState validatorState = to.getCrystallizedState().getValidatorState()
                 .withValidatorSet(validatorSet)
-                .withCommittees(committees)
-                .withNumber(1L);
+                .withCommittees(committees);
 
         CrystallizedState crystallizedState = to.getCrystallizedState()
-                .withDynasty(dynasty)
+                .withValidatorState(validatorState)
                 .withLastStateRecalc(0L)
                 .withCrosslinks(Crosslink.empty(SHARD_COUNT));
 

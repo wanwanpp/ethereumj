@@ -29,15 +29,12 @@ import static org.ethereum.util.ByteUtil.longToBytesNoLeadZeroes;
  */
 public class Crosslink {
 
-    /* What dynasty the crosslink was submitted in */
-    private final long dynasty;
     /* Slot during which crosslink was added */
     private final long slot;
     /* The block hash */
     private byte[] hash;
 
-    public Crosslink(long dynasty, long slot, byte[] hash) {
-        this.dynasty = dynasty;
+    public Crosslink(long slot, byte[] hash) {
         this.slot = slot;
         this.hash = hash;
     }
@@ -45,17 +42,12 @@ public class Crosslink {
     public Crosslink(byte[] encoded) {
         RLPList list = RLP.unwrapList(encoded);
 
-        this.dynasty = byteArrayToLong(list.get(0).getRLPData());
-        this.slot = byteArrayToLong(list.get(1).getRLPData());
-        this.hash = list.get(2).getRLPData();
+        this.slot = byteArrayToLong(list.get(0).getRLPData());
+        this.hash = list.get(1).getRLPData();
     }
 
     public byte[] getEncoded() {
-        return RLP.wrapList(longToBytesNoLeadZeroes(dynasty), longToBytesNoLeadZeroes(slot), hash);
-    }
-
-    public long getDynasty() {
-        return dynasty;
+        return RLP.wrapList(longToBytesNoLeadZeroes(slot), hash);
     }
 
     public long getSlot() {
@@ -75,6 +67,6 @@ public class Crosslink {
     }
 
     public static Crosslink empty() {
-        return new Crosslink(0L, 0L, new byte[32]);
+        return new Crosslink(0L, new byte[32]);
     }
 }

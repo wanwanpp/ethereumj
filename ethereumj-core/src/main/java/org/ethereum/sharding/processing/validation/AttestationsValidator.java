@@ -80,7 +80,7 @@ public class AttestationsValidator implements BeaconValidator {
 
         CrystallizedState crystallized = data.state.getCrystallizedState();
 
-        Committee[][] committees = crystallized.getDynasty().getCommittees();
+        Committee[][] committees = crystallized.getValidatorState().getCommittees();
 
         int index = (int) data.parent.getSlotNumber() % committees.length;
 
@@ -147,9 +147,9 @@ public class AttestationsValidator implements BeaconValidator {
             }
             parentHashes.addAll(attestation.getObliqueParentHashes());
 
-            int slotOffset = (int) (attestation.getSlot() - crystallized.getDynasty().getStartSlot());
+            int slotOffset = (int) (attestation.getSlot() - crystallized.getValidatorState().getValidatorSetChangeSlot());
             List<Committee.Index> attestationIndices = scanCommittees(
-                    crystallized.getDynasty().getCommittees(), slotOffset, attestation.getShardId());
+                    crystallized.getValidatorState().getCommittees(), slotOffset, attestation.getShardId());
 
             // Validate bitfield
             if (attestation.getAttesterBitfield().size() != Bitfield.calcLength(attestationIndices.size())) {
@@ -168,7 +168,7 @@ public class AttestationsValidator implements BeaconValidator {
             List<BigInteger> pubKeys = new ArrayList<>();
             for (Committee.Index index : attestationIndices) {
                 if (attestation.getAttesterBitfield().hasVoted(index.getValidatorIdx())) {
-                    byte[] key = crystallized.getDynasty().getValidatorSet().get(index.getValidatorIdx()).getPubKey();
+                    byte[] key = crystallized.getValidatorState().getValidatorSet().get(index.getValidatorIdx()).getPubKey();
                     pubKeys.add(ByteUtil.bytesToBigInteger(key));
                 }
             }
