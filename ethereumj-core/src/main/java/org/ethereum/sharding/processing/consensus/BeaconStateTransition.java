@@ -49,7 +49,7 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
 
     public BeaconStateTransition(ValidatorRepository validatorRepository, BeaconAttester beaconAttester,
                                  Publisher publisher) {
-        this.validatorStateTransition = new ValidatorStateTransition(new ValidatorSetTransition(validatorRepository));
+        this.validatorStateTransition = new ValidatorStateTransition(validatorRepository);
         this.finalityTransition = new FinalityTransition();
         this.beaconAttester = beaconAttester;
         this.publisher = publisher;

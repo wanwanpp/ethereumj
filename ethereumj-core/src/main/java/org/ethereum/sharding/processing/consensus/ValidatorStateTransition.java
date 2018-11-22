@@ -21,6 +21,7 @@ import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.ValidatorState;
+import org.ethereum.sharding.registration.ValidatorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,11 +36,11 @@ public class ValidatorStateTransition implements StateTransition<ValidatorState>
 
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
-    StateTransition<ValidatorSet> validatorSetTransition;
+    ValidatorRepository validatorRepository;
     CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
 
-    public ValidatorStateTransition(StateTransition<ValidatorSet> validatorSetTransition) {
-        this.validatorSetTransition = validatorSetTransition;
+    public ValidatorStateTransition(ValidatorRepository validatorRepository) {
+        this.validatorRepository = validatorRepository;
     }
 
     @Override
@@ -50,8 +51,8 @@ public class ValidatorStateTransition implements StateTransition<ValidatorState>
         logger.info("Calculate new validator state, slot: {}, prev slot: {}",
                 block.getSlotNumber(), to.getValidatorSetChangeSlot());
 
-        // validator set transition
-        ValidatorSet validatorSet = validatorSetTransition.applyBlock(block, to.getValidatorSet());
+        // FIXME onboard new validators from PoW chain
+        ValidatorSet validatorSet = to.getValidatorSet();
 
         // committee transition
         int startShard = to.getCommitteesEndShard() + 1;
