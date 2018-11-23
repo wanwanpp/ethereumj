@@ -108,7 +108,7 @@ public class BeaconProposerTest {
             randao.generate(1000);
 
             StateRepository repository = new BeaconStateRepository(new HashMapDB<>(), new HashMapDB<>(),
-                    new HashMapDB<>(), new HashMapDB<>(), new HashMapDB<>());
+                    new HashMapDB<>());
             BeaconStore store = new IndexedBeaconStore(new HashMapDB<>(), new HashMapDB<>());
             StateTransition<BeaconState> stateTransition = new NoTransition();
 

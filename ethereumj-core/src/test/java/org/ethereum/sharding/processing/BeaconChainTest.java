@@ -186,7 +186,7 @@ public class BeaconChainTest {
             Helper inst = new Helper();
             inst.store = new IndexedBeaconStore(new HashMapDB<>(), new HashMapDB<>());
             inst.repository = new BeaconStateRepository(new HashMapDB<>(), new HashMapDB<>(),
-                    new HashMapDB<>(), new HashMapDB<>(), new HashMapDB<>());
+                    new HashMapDB<>());
             inst.beaconChain = new BeaconChainImpl(new DummyFlusher(), inst.store, new NoTransition(),
                     inst.repository, new BasicBeaconValidator(inst.store), new StateValidator(),
                     (block, state) -> BigInteger.valueOf(block.getMainChainRef()[0]), new NoTransition());

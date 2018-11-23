@@ -56,17 +56,17 @@ public class GenesisTransitionTest {
         BeaconGenesis genesis = new BeaconGenesis(getJson(v1, v3, v4));
 
         StateRepository stateRepository = new BeaconStateRepository(new HashMapDB<>(), new HashMapDB<>(),
-                new HashMapDB<>(), new HashMapDB<>(), new HashMapDB<>());
+                new HashMapDB<>());
         ValidatorRepository validatorRepository = new PredefinedValidatorRepository(v1, v2, v3, v4);
 
         GenesisTransition transition = new GenesisTransition(validatorRepository);
         BeaconState newState = transition.applyBlock(genesis, stateRepository.getEmpty());
 
-        checkValidatorSet(newState.getCrystallizedState().getValidatorState().getValidatorSet(), v1, v3, v4);
+        checkValidatorSet(newState.getValidatorSet(), v1, v3, v4);
 
         // check committees
         int cnt = 0;
-        for (Committee[] slot : newState.getCrystallizedState().getValidatorState().getCommittees()) {
+        for (Committee[] slot : newState.getCommittees()) {
             if (slot[0].getValidators().length > 0) {
                 cnt += 1;
                 assertEquals(0L, slot[0].getShardId());

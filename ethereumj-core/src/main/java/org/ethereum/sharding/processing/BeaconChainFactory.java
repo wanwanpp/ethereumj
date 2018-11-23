@@ -35,7 +35,6 @@ import org.ethereum.sharding.processing.validation.MultiBeaconValidator;
 import org.ethereum.sharding.processing.validation.StateValidator;
 import org.ethereum.sharding.pubsub.Publisher;
 import org.ethereum.sharding.registration.ValidatorRepository;
-import org.ethereum.sharding.validator.BeaconAttester;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,20 +70,18 @@ public class BeaconChainFactory {
 
     public static BeaconChain create(DbFlushManager beaconDbFlusher, BeaconStore store, StateRepository repository,
                                      ValidatorRepository validatorRepository, Block bestBlock,
-                                     BeaconAttester beaconAttester, Publisher publisher, Sign sign) {
+                                     Publisher publisher, Sign sign) {
 
         StateTransition<BeaconState> genesisStateTransition = new GenesisTransition(validatorRepository)
                 .withMainChainRef(bestBlock.getHash());
 
         return create(beaconDbFlusher, store, repository, genesisStateTransition,
-                stateTransition(validatorRepository, beaconAttester, publisher), sign);
+                stateTransition(publisher), sign);
     }
 
-    public static StateTransition<BeaconState> stateTransition(ValidatorRepository validatorRepository,
-                                                               BeaconAttester beaconAttester,
-                                                               Publisher publisher) {
+    public static StateTransition<BeaconState> stateTransition(Publisher publisher) {
         if (stateTransition == null)
-            stateTransition = new BeaconStateTransition(validatorRepository, beaconAttester, publisher);
+            stateTransition = new BeaconStateTransition(publisher);
         return stateTransition;
     }
 }

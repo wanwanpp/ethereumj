@@ -18,18 +18,15 @@
 package org.ethereum.sharding.processing.consensus;
 
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.processing.state.ActiveState;
+import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.BeaconState;
-import org.ethereum.sharding.processing.state.CrystallizedState;
-import org.ethereum.sharding.processing.state.ValidatorState;
-import org.ethereum.sharding.processing.state.Finality;
+import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.pubsub.Publisher;
-import org.ethereum.sharding.registration.ValidatorRepository;
-import org.ethereum.sharding.validator.BeaconAttester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.MIN_VALIDATOR_SET_CHANGE_INTERVAL;
 import static org.ethereum.sharding.pubsub.Events.onBeaconAttestationIncluded;
 import static org.ethereum.sharding.pubsub.Events.onStateRecalc;
 import static org.ethereum.sharding.util.BeaconUtils.cycleStartSlot;
@@ -42,53 +39,60 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
 
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
-    StateTransition<ValidatorState> validatorStateTransition;
-    StateTransition<Finality> finalityTransition;
-    BeaconAttester beaconAttester;
     Publisher publisher;
+    CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
 
-    public BeaconStateTransition(ValidatorRepository validatorRepository, BeaconAttester beaconAttester,
-                                 Publisher publisher) {
-        this.validatorStateTransition = new ValidatorStateTransition(validatorRepository);
-        this.finalityTransition = new FinalityTransition();
-        this.beaconAttester = beaconAttester;
+    public BeaconStateTransition(Publisher publisher) {
         this.publisher = publisher;
     }
 
-    public BeaconStateTransition(StateTransition<ValidatorState> validatorStateTransition,
-                                 StateTransition<Finality> finalityTransition) {
-        this.validatorStateTransition = validatorStateTransition;
-        this.finalityTransition = finalityTransition;
+    public BeaconStateTransition() {
     }
 
     @Override
     public BeaconState applyBlock(Beacon block, BeaconState to) {
-
-        CrystallizedState crystallized = to.getCrystallizedState();
-        ActiveState activeState = to.getActiveState();
+        BeaconState ret = to;
 
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
-        activeState = activeState.addPendingAttestations(block.getAttestations());
+        ret = ret.addPendingAttestations(block.getAttestations());
 
-        if (block.getSlotNumber() - crystallized.getLastStateRecalc() >= CYCLE_LENGTH) {
-            logger.info("Calculate new crystallized state, slot: {}, prev slot: {}",
-                    block.getSlotNumber(), crystallized.getLastStateRecalc());
+        if (block.getSlotNumber() - ret.getLastStateRecalc() >= CYCLE_LENGTH) {
+            logger.info("Process cycle transition, slot: {}, prev slot: {}",
+                    block.getSlotNumber(), to.getLastStateRecalc());
 
-            Finality finality = finalityTransition.applyBlock(block, crystallized.getFinality());
-            ValidatorState validatorState = validatorStateTransition.applyBlock(block, crystallized.getValidatorState());
+            // FIXME add finality transition
 
-            crystallized = crystallized
-                    .withValidatorState(validatorState)
-                    .withLastStateRecalc(cycleStartSlot(block))
-                    .withFinality(finality);
+            if (block.getSlotNumber() - to.getValidatorSetChangeSlot() >= MIN_VALIDATOR_SET_CHANGE_INTERVAL) {
+
+                logger.info("Change validator set, slot: {}, prev slot: {}",
+                        block.getSlotNumber(), to.getValidatorSetChangeSlot());
+
+                // FIXME onboard new validators from PoW chain
+                ValidatorSet validatorSet = to.getValidatorSet();
+
+                // committee transition
+                int startShard = to.getCommitteesEndShard() + 1;
+                int[] validators = validatorSet.getActiveIndices();
+
+                // using parent hash to seed committees instead of hash of processing block,
+                // the reason is that proposer does not know hash of newly created block before it applies that block to a state
+                Committee[][] committees = committeeFactory.create(block.getParentHash(), validators, startShard);
+
+                ret = ret.withValidatorSetChangeSlot(cycleStartSlot(block))
+                        .withValidatorSet(validatorSet)
+                        .withCommittees(committees);
+            }
+
+            ret = ret.withLastStateRecalc(cycleStartSlot(block));
+
             if (publisher != null) {
-                publisher.publish(onStateRecalc(crystallized.getLastStateRecalc()));
+                publisher.publish(onStateRecalc(ret.getLastStateRecalc()));
             }
 
             // remove attestations older than last_state_recalc
-            activeState = activeState.removeAttestationsPriorTo(crystallized.getLastStateRecalc());
+            ret = ret.removeOutdatedAttestations();
         }
 
-        return new BeaconState(crystallized, activeState);
+        return ret;
     }
 }

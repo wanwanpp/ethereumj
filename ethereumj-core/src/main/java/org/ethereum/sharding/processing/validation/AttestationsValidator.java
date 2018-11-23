@@ -23,7 +23,6 @@ import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
-import org.ethereum.sharding.processing.state.CrystallizedState;
 import org.ethereum.sharding.processing.state.StateRepository;
 import org.ethereum.sharding.util.BeaconUtils;
 import org.ethereum.sharding.util.Bitfield;
@@ -78,9 +77,7 @@ public class AttestationsValidator implements BeaconValidator {
             return Success;
         }
 
-        CrystallizedState crystallized = data.state.getCrystallizedState();
-
-        Committee[][] committees = crystallized.getValidatorState().getCommittees();
+        Committee[][] committees = data.state.getCommittees();
 
         int index = (int) data.parent.getSlotNumber() % committees.length;
 
@@ -105,9 +102,8 @@ public class AttestationsValidator implements BeaconValidator {
     };
 
     static final ValidationRule<Data> CommonAttestationRule = (block, data) -> {
-        CrystallizedState crystallized = data.state.getCrystallizedState();
         List<AttestationRecord> attestationRecords = block.getAttestations();
-        List<byte[]> recentBlockHashes = data.state.getActiveState().getRecentBlockHashes();
+        List<byte[]> recentBlockHashes = data.state.getRecentBlockHashes();
 
         for (AttestationRecord attestation : attestationRecords) {
             // Too early
@@ -121,7 +117,7 @@ public class AttestationsValidator implements BeaconValidator {
             }
 
             // Incorrect justified
-            if (attestation.getJustifiedSlot() > crystallized.getFinality().getLastJustifiedSlot()) {
+            if (attestation.getJustifiedSlot() > data.state.getLastJustifiedSlot()) {
                 return InvalidAttestations;
             }
 
@@ -147,9 +143,9 @@ public class AttestationsValidator implements BeaconValidator {
             }
             parentHashes.addAll(attestation.getObliqueParentHashes());
 
-            int slotOffset = (int) (attestation.getSlot() - crystallized.getValidatorState().getValidatorSetChangeSlot());
+            int slotOffset = (int) (attestation.getSlot() - data.state.getValidatorSetChangeSlot());
             List<Committee.Index> attestationIndices = scanCommittees(
-                    crystallized.getValidatorState().getCommittees(), slotOffset, attestation.getShardId());
+                    data.state.getCommittees(), slotOffset, attestation.getShardId());
 
             // Validate bitfield
             if (attestation.getAttesterBitfield().size() != Bitfield.calcLength(attestationIndices.size())) {
@@ -168,7 +164,7 @@ public class AttestationsValidator implements BeaconValidator {
             List<BigInteger> pubKeys = new ArrayList<>();
             for (Committee.Index index : attestationIndices) {
                 if (attestation.getAttesterBitfield().hasVoted(index.getValidatorIdx())) {
-                    byte[] key = crystallized.getValidatorState().getValidatorSet().get(index.getValidatorIdx()).getPubKey();
+                    byte[] key = data.state.getValidatorSet().get(index.getValidatorIdx()).getPubKey();
                     pubKeys.add(ByteUtil.bytesToBigInteger(key));
                 }
             }

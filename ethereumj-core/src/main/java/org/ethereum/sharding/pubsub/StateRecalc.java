@@ -18,8 +18,7 @@
 package org.ethereum.sharding.pubsub;
 
 /**
- * Pushed when state recalc happens and
- * crystallized state {@link org.ethereum.sharding.processing.state.CrystallizedState} is changed
+ * Pushed when cycle transition is happened
  */
 public class StateRecalc extends Event<StateRecalc.Data> {
 

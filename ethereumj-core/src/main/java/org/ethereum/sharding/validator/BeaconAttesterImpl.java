@@ -52,7 +52,7 @@ public class BeaconAttesterImpl implements BeaconAttester {
 
     @Override
     public AttestationRecord attestBlock(Input in, byte[] pubKey) {
-        long lastJustified = in.state.getCrystallizedState().getFinality().getLastJustifiedSlot();
+        long lastJustified = in.state.getLastJustifiedSlot();
         byte[] msgHash = in.block.getHash();
         List<Sign.Signature> aggSigns = new ArrayList<>();
         aggSigns.add(sign.sign(msgHash, new BigInteger(pubKey)));

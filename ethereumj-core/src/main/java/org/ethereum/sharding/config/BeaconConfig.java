@@ -165,15 +165,13 @@ public class BeaconConfig {
         Source<byte[], byte[]> src = cachedBeaconChainSource("beacon_state");
         Source<byte[], byte[]> validatorSrc = cachedBeaconChainSource("validator_set");
         Source<byte[], byte[]> validatorIndexSrc = cachedBeaconChainSource("validator_index");
-        Source<byte[], byte[]> crystallizedSrc = cachedBeaconChainSource("crystallized_state");
-        Source<byte[], byte[]> activeSrc = cachedBeaconChainSource("active_state");
-        return new BeaconStateRepository(src, crystallizedSrc, activeSrc, validatorSrc, validatorIndexSrc);
+        return new BeaconStateRepository(src, validatorSrc, validatorIndexSrc);
     }
 
     @Bean
     public BeaconChain beaconChain() {
         BeaconChain beaconChain = BeaconChainFactory.create(beaconDbFlusher(), beaconStore(), beaconStateRepository(),
-                validatorRepository(), blockStore.getBestBlock(), beaconAttester(), publisher(), sign());
+                validatorRepository(), blockStore.getBestBlock(), publisher(), sign());
         shardingWorldManager.setBeaconChain(beaconChain);
         return beaconChain;
     }
@@ -224,7 +222,7 @@ public class BeaconConfig {
     @Bean
     public BeaconProposer beaconProposer() {
         return new BeaconProposerImpl(randao(), beaconStateRepository(), beaconStore(),
-                BeaconChainFactory.stateTransition(validatorRepository(), beaconAttester(), publisher()),
+                BeaconChainFactory.stateTransition(publisher()),
                 validatorConfig(), attestationPool());
     }
 

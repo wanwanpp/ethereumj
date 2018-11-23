@@ -6,19 +6,17 @@ import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.db.TrieValidatorSet;
 import org.ethereum.sharding.processing.db.ValidatorSet;
-import org.ethereum.sharding.processing.state.ActiveState;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.Crosslink;
-import org.ethereum.sharding.processing.state.CrystallizedState;
-import org.ethereum.sharding.processing.state.ValidatorState;
-import org.ethereum.sharding.processing.state.Finality;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Random;
 
+import static java.util.Collections.emptyList;
 import static org.ethereum.crypto.HashUtil.randomHash;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -31,8 +29,18 @@ public class StateTransitionTest {
     public void testBasics() {
         Validator validator = getRandomValidator();
 
-        StateTransition<BeaconState> transitionFunction = new BeaconStateTransition(
-                validatorStateTransition(validatorTransition(validator)), finalityTransition());
+        StateTransition<BeaconState> transitionFunction = new BeaconStateTransition() {
+            @Override
+            public BeaconState applyBlock(Beacon block, BeaconState to) {
+                BeaconState ret = to;
+                if (block.getSlotNumber() - ret.getLastStateRecalc() >= CYCLE_LENGTH) {
+                    ret = finalityTransition().applyBlock(block, ret);
+                    ValidatorSet validators = validatorTransition(validator).applyBlock(block, ret.getValidatorSet());
+                    ret = ret.withValidatorSet(validators);
+                }
+                return super.applyBlock(block, ret);
+            }
+        };
 
         Beacon b1 = new Beacon(new byte[32], new byte[32], new byte[32], new byte[32], 1L, new ArrayList<>());
         Beacon b2 = new Beacon(new byte[32], new byte[32], new byte[32], new byte[32], 63L, new ArrayList<>());
@@ -41,16 +49,13 @@ public class StateTransitionTest {
 
         assertEquals(getOrigin(), transitionFunction.applyBlock(b1, getOrigin()));
         assertEquals(getOrigin(), transitionFunction.applyBlock(b2, getOrigin()));
+        BeaconState expected = getExpected(b3, validator), actual = transitionFunction.applyBlock(b3, getOrigin());
         assertEquals(getExpected(b3, validator), transitionFunction.applyBlock(b3, getOrigin()));
         assertEquals(getExpected(b4, validator), transitionFunction.applyBlock(b4, getOrigin()));
     }
 
-    StateTransition<ValidatorState> validatorStateTransition(StateTransition<ValidatorSet> validatorTransition) {
-        return (block, to) -> to.withValidatorSet(validatorTransition.applyBlock(block, to.getValidatorSet()));
-    }
-
-    StateTransition<Finality> finalityTransition() {
-        return (block, to) -> new Finality(10L, 10L, 10L);
+    StateTransition<BeaconState> finalityTransition() {
+        return (block, to) -> to.withFinality(10L, 10L, 10L);
     }
 
     StateTransition<ValidatorSet> validatorTransition(Validator validator) {
@@ -62,27 +67,16 @@ public class StateTransitionTest {
 
     BeaconState getExpected(Beacon block, Validator validator) {
         ValidatorSet validatorSet = validatorTransition(validator).applyBlock(block,
-                new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<byte[]>()));
-        ValidatorState validatorState = validatorStateTransition(validatorTransition(validator))
-                .applyBlock(block, getOrigin().getCrystallizedState().getValidatorState())
-                .withValidatorSet(validatorSet);
-        Finality finality = finalityTransition().applyBlock(block, getOrigin().getCrystallizedState().getFinality());
-
-        CrystallizedState crystallized = new CrystallizedState(
-                getOrigin().getCrystallizedState().getLastStateRecalc() + BeaconConstants.CYCLE_LENGTH,
-                validatorState, finality, new Crosslink[0]
-        );
-
-        return new BeaconState(crystallized, getOrigin().getActiveState());
+                new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>()));
+        BeaconState ret = getOrigin().withValidatorSet(validatorSet);
+        ret = finalityTransition().applyBlock(block, ret);
+        return ret.increaseLastStateRecalc(BeaconConstants.CYCLE_LENGTH);
     }
 
     BeaconState getOrigin() {
         ValidatorSet validatorSet = new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>());
-        ValidatorState validatorState = new ValidatorState(validatorSet, new Committee[0][], new byte[32], 0L);
-        Finality finality = Finality.empty();
-
-        CrystallizedState crystallized = new CrystallizedState(0L, validatorState, finality, new Crosslink[0]);
-        return new BeaconState(crystallized, ActiveState.createEmpty());
+        return new BeaconState(0L, validatorSet, new Committee[0][], new byte[32], 0L, 0L, 0L, 0L,
+                new Crosslink[0], emptyList(), emptyList(), emptyList(), new byte[32]);
     }
 
     Validator getRandomValidator() {

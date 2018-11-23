@@ -20,7 +20,6 @@ package org.ethereum.sharding.processing.consensus;
 import org.ethereum.db.ByteArrayWrapper;
 import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.db.BeaconStore;
-import org.ethereum.sharding.processing.state.ActiveState;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.util.Bitfield;
@@ -48,10 +47,8 @@ public class MaximumVotesAsScore implements ScoreFunction {
 
     @Override
     public BigInteger apply(Beacon block, BeaconState state) {
-        ActiveState activeState = state.getActiveState();
-
         // Assumes that data from block is already in active state
-        List<AttestationRecord> pendingAttestations = activeState.getPendingAttestations();
+        List<AttestationRecord> pendingAttestations = state.getPendingAttestations();
         AttestationRecord first = block.getAttestations().get(0);
         boolean found = false;
         for (int i = pendingAttestations.size() - 1; i >= 0; --i) {
@@ -63,7 +60,7 @@ public class MaximumVotesAsScore implements ScoreFunction {
             throw new RuntimeException("State should already include scored block");
         }
 
-        long lastJustified = state.getCrystallizedState().getFinality().getLastJustifiedSlot();
+        long lastJustified = state.getLastJustifiedSlot();
 
         // Calculate per block votes
         Map<ByteArrayWrapper, List<AttestationRecord>> perBlockAttestations = new HashMap<>();
