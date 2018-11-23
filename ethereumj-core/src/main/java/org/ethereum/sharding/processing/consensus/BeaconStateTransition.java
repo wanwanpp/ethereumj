@@ -56,9 +56,9 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
         ret = ret.addPendingAttestations(block.getAttestations());
 
-        if (block.getSlotNumber() - ret.getLastStateRecalc() >= CYCLE_LENGTH) {
+        if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
             logger.info("Process cycle transition, slot: {}, prev slot: {}",
-                    block.getSlotNumber(), to.getLastStateRecalc());
+                    block.getSlotNumber(), to.getLastStateRecalculationSlot());
 
             // FIXME add finality transition
 
@@ -86,7 +86,7 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
             ret = ret.withLastStateRecalc(cycleStartSlot(block));
 
             if (publisher != null) {
-                publisher.publish(onStateRecalc(ret.getLastStateRecalc()));
+                publisher.publish(onStateRecalc(ret.getLastStateRecalculationSlot()));
             }
 
             // remove attestations older than last_state_recalc

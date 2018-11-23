@@ -33,7 +33,7 @@ public class StateTransitionTest {
             @Override
             public BeaconState applyBlock(Beacon block, BeaconState to) {
                 BeaconState ret = to;
-                if (block.getSlotNumber() - ret.getLastStateRecalc() >= CYCLE_LENGTH) {
+                if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
                     ret = finalityTransition().applyBlock(block, ret);
                     ValidatorSet validators = validatorTransition(validator).applyBlock(block, ret.getValidatorSet());
                     ret = ret.withValidatorSet(validators);
@@ -49,7 +49,6 @@ public class StateTransitionTest {
 
         assertEquals(getOrigin(), transitionFunction.applyBlock(b1, getOrigin()));
         assertEquals(getOrigin(), transitionFunction.applyBlock(b2, getOrigin()));
-        BeaconState expected = getExpected(b3, validator), actual = transitionFunction.applyBlock(b3, getOrigin());
         assertEquals(getExpected(b3, validator), transitionFunction.applyBlock(b3, getOrigin()));
         assertEquals(getExpected(b4, validator), transitionFunction.applyBlock(b4, getOrigin()));
     }
@@ -76,7 +75,7 @@ public class StateTransitionTest {
     BeaconState getOrigin() {
         ValidatorSet validatorSet = new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>());
         return new BeaconState(0L, validatorSet, new Committee[0][], new byte[32], 0L, 0L, 0L, 0L,
-                new Crosslink[0], emptyList(), emptyList(), emptyList(), new byte[32]);
+                new Crosslink[0], emptyList(), emptyList(), new byte[32]);
     }
 
     Validator getRandomValidator() {

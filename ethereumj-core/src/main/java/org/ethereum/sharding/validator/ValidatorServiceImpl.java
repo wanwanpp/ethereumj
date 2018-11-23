@@ -114,7 +114,7 @@ public class ValidatorServiceImpl implements ValidatorService {
             return t;
         });
 
-        this.lastStateRecalc = this.head.state.getLastStateRecalc();
+        this.lastStateRecalc = this.head.state.getLastStateRecalculationSlot();
 
         // listen to state updates
         publisher.subscribe(BeaconBlockImported.class, (data) -> {
@@ -122,8 +122,8 @@ public class ValidatorServiceImpl implements ValidatorService {
                 return;
 
             // trigger only if crystallized state has been recalculated
-            if (data.getState().getLastStateRecalc() > lastStateRecalc) {
-                this.lastStateRecalc = data.getState().getLastStateRecalc();
+            if (data.getState().getLastStateRecalculationSlot() > lastStateRecalc) {
+                this.lastStateRecalc = data.getState().getLastStateRecalculationSlot();
                 this.submitIfAssigned(data.getState().getCommittees());
             }
 

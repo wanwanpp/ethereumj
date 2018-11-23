@@ -32,7 +32,7 @@ import org.ethereum.sharding.processing.db.ValidatorSet;
 public class BeaconStateRepository implements StateRepository {
 
     Source<byte[], byte[]> src;
-    ObjectDataSource<BeaconState.Flattened> stateDS;
+    ObjectDataSource<FlattenedState> stateDS;
     Source<byte[], byte[]> validatorSrc;
     Source<byte[], byte[]> validatorIndexSrc;
 
@@ -41,7 +41,7 @@ public class BeaconStateRepository implements StateRepository {
         this.src = src;
         this.validatorSrc = validatorSrc;
         this.validatorIndexSrc = validatorIndexSrc;
-        this.stateDS = new ObjectDataSource<>(src, BeaconState.Flattened.Serializer, BeaconStore.BLOCKS_IN_MEM);
+        this.stateDS = new ObjectDataSource<>(src, FlattenedState.Serializer, BeaconStore.BLOCKS_IN_MEM);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class BeaconStateRepository implements StateRepository {
 
     @Override
     public BeaconState get(byte[] hash) {
-        BeaconState.Flattened flattened = stateDS.get(hash);
+        FlattenedState flattened = stateDS.get(hash);
         if (flattened == null)
             return null;
 
@@ -60,16 +60,16 @@ public class BeaconStateRepository implements StateRepository {
 
     @Override
     public BeaconState getEmpty() {
-        return fromFlattened(BeaconState.Flattened.empty());
+        return fromFlattened(FlattenedState.empty());
     }
 
-    BeaconState fromFlattened(BeaconState.Flattened flattened) {
+    BeaconState fromFlattened(FlattenedState flattened) {
         ValidatorSet validatorSet = new TrieValidatorSet(validatorSrc, validatorIndexSrc,
                 flattened.getValidatorSetHash());
         return new BeaconState(flattened.getLastStateRecalc(), validatorSet, flattened.getCommittees(),
                 flattened.getNextShufflingSeed(), flattened.getValidatorSetChangeSlot(),
                 flattened.getLastJustifiedSlot(), flattened.getJustifiedStreak(), flattened.getLastFinalizedSlot(),
-                flattened.getCrosslinks(), flattened.getPendingAttestations(), flattened.getPendingSpecials(),
+                flattened.getCrosslinks(), flattened.getPendingAttestations(),
                 flattened.getRecentBlockHashes(), flattened.getRandaoMix());
     }
 

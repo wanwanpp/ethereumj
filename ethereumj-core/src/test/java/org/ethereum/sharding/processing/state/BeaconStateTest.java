@@ -51,14 +51,14 @@ public class BeaconStateTest {
     }
 
     BeaconState fromEncoded(byte[] encoded) {
-        BeaconState.Flattened flattened = new BeaconState.Flattened(encoded);
+        FlattenedState flattened = new FlattenedState(encoded);
         ValidatorSet validatorSet = new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>(),
                 flattened.getValidatorSetHash());
 
         return new BeaconState(flattened.getLastStateRecalc(), validatorSet, flattened.getCommittees(),
                 flattened.getNextShufflingSeed(), flattened.getValidatorSetChangeSlot(),
                 flattened.getLastJustifiedSlot(), flattened.getJustifiedStreak(), flattened.getLastFinalizedSlot(),
-                flattened.getCrosslinks(), flattened.getPendingAttestations(), flattened.getPendingSpecials(),
+                flattened.getCrosslinks(), flattened.getPendingAttestations(),
                 flattened.getRecentBlockHashes(), flattened.getRandaoMix());
     }
 
@@ -90,11 +90,11 @@ public class BeaconStateTest {
         return new BeaconState(abs(rnd.nextInt()), validatorSet, committees,
                 HashUtil.randomHash(), abs(rnd.nextInt()) % 100 + 1,
                 abs(rnd.nextInt()) % 100 + 1, abs(rnd.nextInt()) % 100 + 1, abs(rnd.nextInt()) % 100 + 1, links,
-                Collections.emptyList(), Collections.emptyList(), recentBlockHashes, HashUtil.randomHash());
+                Collections.emptyList(), recentBlockHashes, HashUtil.randomHash());
     }
     
     void assertStateEquals(BeaconState expected, BeaconState actual) {
-        assertEquals(expected.getLastStateRecalc(), actual.getLastStateRecalc());
+        assertEquals(expected.getLastStateRecalculationSlot(), actual.getLastStateRecalculationSlot());
         assertEquals(expected.getCrosslinks().length, actual.getCrosslinks().length);
         for (int i = 0; i < expected.getCrosslinks().length; i++) {
             Crosslink e = expected.getCrosslinks()[i]; Crosslink a = actual.getCrosslinks()[i];
@@ -126,13 +126,6 @@ public class BeaconStateTest {
         assertEquals(expected.getRecentBlockHashes().size(), actual.getRecentBlockHashes().size());
         for (int i = 0; i < expected.getRecentBlockHashes().size(); i++) {
             assertArrayEquals(expected.getRecentBlockHashes().get(i), actual.getRecentBlockHashes().get(i));
-        }
-
-        for (int i = 0; i < expected.getPendingSpecials().size(); i++) {
-            assertArrayEquals(expected.getPendingSpecials().get(i).getData(),
-                    actual.getPendingSpecials().get(i).getData());
-            assertEquals(expected.getPendingSpecials().get(i).getKind(),
-                    actual.getPendingSpecials().get(i).getKind());
         }
 
         for (int i = 0; i < expected.getPendingAttestations().size(); i++) {
