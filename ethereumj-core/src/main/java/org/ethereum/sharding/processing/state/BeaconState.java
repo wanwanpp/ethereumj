@@ -23,6 +23,7 @@ import org.ethereum.util.FastByteComparisons;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.util.Collections.emptyList;
 import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 
 /**
@@ -67,9 +68,8 @@ public class BeaconState {
     private final long genesisTime = 0;
 
     /* PoW chain reference */
-    private final byte[] knownPowReceiptRoot = ZERO_BYTE_ARRAY;
-    private final byte[] candidatePowReceiptRoot = ZERO_BYTE_ARRAY;
-    private final long candidatePowReceiptRootVotes = 0;
+    private final byte[] processedPoWReceiptRoot = ZERO_BYTE_ARRAY;
+    private final List<CandidatePoWReceiptRootRecord> candidatePoWReceiptRoots = emptyList();
 
     /* Parameters relevant to hard forks / versioning. Should be updated only by hard forks. */
     private final long preForkVersion = 0;
