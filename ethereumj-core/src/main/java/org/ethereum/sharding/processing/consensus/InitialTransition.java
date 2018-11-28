@@ -18,7 +18,6 @@
 package org.ethereum.sharding.processing.consensus;
 
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.BeaconState;
@@ -34,39 +33,36 @@ import static org.ethereum.sharding.processing.consensus.BeaconConstants.SHARD_C
  * @author Mikhail Kalinin
  * @since 04.09.2018
  */
-public class GenesisTransition implements StateTransition<BeaconState> {
+public class InitialTransition implements StateTransition<BeaconState> {
 
     ValidatorRepository validatorRepository;
     StateTransition<ValidatorSet> validatorSetTransition = new ValidatorSetInitiator();
     CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
     byte[] mainChainRef;
+    long genesisTimestamp = 1535454832L;
 
-    public GenesisTransition(ValidatorRepository validatorRepository) {
+    public InitialTransition(ValidatorRepository validatorRepository) {
         this.validatorRepository = validatorRepository;
     }
 
-    public GenesisTransition withMainChainRef(byte[] mainChainRef) {
+    public InitialTransition withMainChainRef(byte[] mainChainRef) {
         this.mainChainRef = mainChainRef;
         return this;
     }
 
     @Override
     public BeaconState applyBlock(Beacon block, BeaconState to) {
-        assert block instanceof BeaconGenesis;
-
-        BeaconGenesis genesis = (BeaconGenesis) block;
-        if (mainChainRef == null) {
-            mainChainRef = genesis.getMainChainRef();
-        }
+        assert block.isGenesis();
 
         ValidatorSet validatorSet = validatorSetTransition.applyBlock(block, to.getValidatorSet());
-        Committee[][] committees = committeeFactory.create(genesis.getRandaoReveal(),
+        Committee[][] committees = committeeFactory.create(new byte[32],
                 validatorSet.getActiveIndices(), 0);
 
         return to.withValidatorSet(validatorSet)
                 .withCommittees(committees)
                 .withLastStateRecalc(0L)
-                .withCrosslinks(Crosslink.empty(SHARD_COUNT));
+                .withCrosslinks(Crosslink.empty(SHARD_COUNT))
+                .withGenesisTime(genesisTimestamp);
     }
 
     class ValidatorSetInitiator implements StateTransition<ValidatorSet> {

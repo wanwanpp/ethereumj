@@ -70,7 +70,7 @@ public class BeaconStateRepository implements StateRepository {
                 flattened.getNextShufflingSeed(), flattened.getValidatorSetChangeSlot(),
                 flattened.getLastJustifiedSlot(), flattened.getJustifiedStreak(), flattened.getLastFinalizedSlot(),
                 flattened.getCrosslinks(), flattened.getPendingAttestations(),
-                flattened.getRecentBlockHashes(), flattened.getRandaoMix());
+                flattened.getRecentBlockHashes(), flattened.getRandaoMix(), flattened.getGenesisTime());
     }
 
     @Override

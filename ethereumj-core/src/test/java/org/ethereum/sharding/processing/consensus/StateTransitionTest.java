@@ -75,7 +75,7 @@ public class StateTransitionTest {
     BeaconState getOrigin() {
         ValidatorSet validatorSet = new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>());
         return new BeaconState(0L, validatorSet, new Committee[0][], new byte[32], 0L, 0L, 0L, 0L,
-                new Crosslink[0], emptyList(), emptyList(), new byte[32]);
+                new Crosslink[0], emptyList(), emptyList(), new byte[32], 0L);
     }
 
     Validator getRandomValidator() {

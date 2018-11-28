@@ -77,6 +77,7 @@ public class ValidatorServiceImpl implements ValidatorService {
     private long lastStateRecalc;
     private ChainHead head;
     private byte[] mainChainRef;
+    private long genesisTimestamp;
 
     public ValidatorServiceImpl(BeaconProposer proposer, BeaconAttester attester, BeaconChain beaconChain,
                                 Publisher publisher, ValidatorConfig config, Ethereum ethereum, BlockStore blockStore) {
@@ -93,6 +94,7 @@ public class ValidatorServiceImpl implements ValidatorService {
     public void init(ChainHead head) {
         this.head = head;
         this.mainChainRef = getMainChainRef(blockStore.getBestBlock());
+        this.genesisTimestamp = head.state.getGenesisTime();
 
         for (byte[] pubKey : config.getPubKeys()) {
             Validator validator = this.head.state.getValidatorSet().getByPubKey(pubKey);
@@ -156,7 +158,7 @@ public class ValidatorServiceImpl implements ValidatorService {
 
         for (Committee.Index index : indices) {
             // get number of the next slot that validator is eligible to propose
-            long slotNumber = calcNextAssignedSlot(getCurrentSlotNumber(), index.getSlotOffset());
+            long slotNumber = calcNextAssignedSlot(getCurrentSlotNumber(genesisTimestamp), index.getSlotOffset());
 
             // not an obvious way of calculating proposer index,
             // proposer = committee[X % len(committee)], X = slotNumber
@@ -200,14 +202,14 @@ public class ValidatorServiceImpl implements ValidatorService {
         if (executor == null) return -1L;
 
         // skip slots that start in the past
-        if (slotNumber <= getCurrentSlotNumber())
+        if (slotNumber <= getCurrentSlotNumber(genesisTimestamp))
             return -1L;
 
         // always cancel current task and create a new one
         if (currentTasks.containsKey(validatorIdx))
             currentTasks.get(validatorIdx).cancel(false);
 
-        long delayMillis = getSlotStartTime(slotNumber) + delayShiftMillis - System.currentTimeMillis();
+        long delayMillis = getSlotStartTime(slotNumber, genesisTimestamp) + delayShiftMillis - System.currentTimeMillis();
         ScheduledFuture newTask = executor.schedule(() -> {
             try {
                 return supplier.get();

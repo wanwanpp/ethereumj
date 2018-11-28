@@ -17,7 +17,6 @@
  */
 package org.ethereum.sharding.util;
 
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.state.Committee;
 import org.junit.Test;
@@ -67,17 +66,17 @@ public class BeaconUtilsTest {
     @Test
     public void testSlotCalculations() {
 
-        long genesisTimestamp = BeaconGenesis.instance().getTimestamp();
+        long genesisTimestamp = System.currentTimeMillis();
 
-        assertEquals(0L, BeaconUtils.getSlotNumber(genesisTimestamp));
-        assertEquals(0L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION / 2));
-        assertEquals(1L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION));
-        assertEquals(1L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION + SLOT_DURATION / 2));
-        assertEquals(49L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION * 49));
-        assertEquals(49L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION * 49 + SLOT_DURATION / 100));
+        assertEquals(0L, BeaconUtils.getSlotNumber(genesisTimestamp, genesisTimestamp));
+        assertEquals(0L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION / 2, genesisTimestamp));
+        assertEquals(1L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION, genesisTimestamp));
+        assertEquals(1L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION + SLOT_DURATION / 2, genesisTimestamp));
+        assertEquals(49L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION * 49, genesisTimestamp));
+        assertEquals(49L, BeaconUtils.getSlotNumber(genesisTimestamp + SLOT_DURATION * 49 + SLOT_DURATION / 100, genesisTimestamp));
 
-        assertEquals(genesisTimestamp, BeaconUtils.getSlotStartTime(0L));
-        assertEquals(genesisTimestamp + SLOT_DURATION, BeaconUtils.getSlotStartTime(1L));
-        assertEquals(genesisTimestamp + SLOT_DURATION * 49, BeaconUtils.getSlotStartTime(49L));
+        assertEquals(genesisTimestamp, BeaconUtils.getSlotStartTime(0L, genesisTimestamp));
+        assertEquals(genesisTimestamp + SLOT_DURATION, BeaconUtils.getSlotStartTime(1L, genesisTimestamp));
+        assertEquals(genesisTimestamp + SLOT_DURATION * 49, BeaconUtils.getSlotStartTime(49L, genesisTimestamp));
     }
 }

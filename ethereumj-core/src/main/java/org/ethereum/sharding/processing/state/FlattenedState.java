@@ -53,11 +53,14 @@ public class FlattenedState {
     private final List<byte[]> recentBlockHashes;
     /* RANDAO state */
     private final byte[] randaoMix;
+    /* Genesis time */
+    private final long genesisTime;
 
     public FlattenedState(byte[] validatorSetHash, long lastStateRecalc, Committee[][] committees, long lastJustifiedSlot,
                           long justifiedStreak, long lastFinalizedSlot, Crosslink[] crosslinks,
                           byte[] nextShufflingSeed, long validatorSetChangeSlot, byte[] randaoMix,
-                          List<byte[]> recentBlockHashes, List<AttestationRecord> pendingAttestations) {
+                          List<byte[]> recentBlockHashes, List<AttestationRecord> pendingAttestations,
+                          long genesisTime) {
         this.validatorSetHash = validatorSetHash;
         this.lastStateRecalc = lastStateRecalc;
         this.committees = committees;
@@ -70,6 +73,7 @@ public class FlattenedState {
         this.randaoMix = randaoMix;
         this.recentBlockHashes = recentBlockHashes;
         this.pendingAttestations = pendingAttestations;
+        this.genesisTime = genesisTime;
     }
 
     public FlattenedState(byte[] encoded) {
@@ -126,6 +130,8 @@ public class FlattenedState {
         }
 
         this.randaoMix = list.get(11).getRLPData();
+
+        this.genesisTime = byteArrayToLong(list.get(12).getRLPData());
     }
 
     public byte[] encode() {
@@ -164,7 +170,7 @@ public class FlattenedState {
                 encodedCrosslinks.length > 0 ? RLP.wrapList(encodedCrosslinks) : ZERO_BYTE_ARRAY,
                 pendingAttestations.size() > 0 ? RLP.wrapList(encodedAttestations) : ZERO_BYTE_ARRAY,
                 recentBlockHashes.size() > 0 ? RLP.wrapList(encodedHashes) : ZERO_BYTE_ARRAY,
-                randaoMix);
+                randaoMix, longToBytesNoLeadZeroes(genesisTime));
     }
 
     public byte[] getHash() {
@@ -219,6 +225,10 @@ public class FlattenedState {
         return randaoMix;
     }
 
+    public long getGenesisTime() {
+        return genesisTime;
+    }
+
     public static org.ethereum.datasource.Serializer<FlattenedState, byte[]> getSerializer() {
         return Serializer;
     }
@@ -229,7 +239,7 @@ public class FlattenedState {
             recentBlockHashes.add(new byte[32]);
         }
         return new FlattenedState(ValidatorSet.EMPTY_HASH, 0, new Committee[0][], 0L, 0L, 0L,
-                new Crosslink[0], new byte[32], 0L, new byte[32], recentBlockHashes, emptyList());
+                new Crosslink[0], new byte[32], 0L, new byte[32], recentBlockHashes, emptyList(), 0L);
     }
 
     public static final org.ethereum.datasource.Serializer<FlattenedState, byte[]> Serializer = new Serializer<FlattenedState, byte[]>() {

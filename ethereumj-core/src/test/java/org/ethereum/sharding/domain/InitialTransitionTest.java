@@ -19,7 +19,7 @@ package org.ethereum.sharding.domain;
 
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.datasource.inmem.HashMapDB;
-import org.ethereum.sharding.processing.consensus.GenesisTransition;
+import org.ethereum.sharding.processing.consensus.InitialTransition;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.BeaconStateRepository;
@@ -27,7 +27,6 @@ import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.StateRepository;
 import org.ethereum.sharding.registration.ValidatorRepository;
 import org.junit.Test;
-import org.spongycastle.util.encoders.Hex;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,7 +42,7 @@ import static org.junit.Assert.assertTrue;
  * @author Mikhail Kalinin
  * @since 05.09.2018
  */
-public class GenesisTransitionTest {
+public class InitialTransitionTest {
 
     @Test
     public void testInitialValidatorSet() {
@@ -53,14 +52,12 @@ public class GenesisTransitionTest {
         Validator v3 = getRandomValidator();
         Validator v4 = getRandomValidator();
 
-        BeaconGenesis genesis = new BeaconGenesis(getJson(v1, v3, v4));
-
         StateRepository stateRepository = new BeaconStateRepository(new HashMapDB<>(), new HashMapDB<>(),
                 new HashMapDB<>());
         ValidatorRepository validatorRepository = new PredefinedValidatorRepository(v1, v2, v3, v4);
 
-        GenesisTransition transition = new GenesisTransition(validatorRepository);
-        BeaconState newState = transition.applyBlock(genesis, stateRepository.getEmpty());
+        InitialTransition transition = new InitialTransition(validatorRepository);
+        BeaconState newState = transition.applyBlock(Beacon.GENESIS, stateRepository.getEmpty());
 
         checkValidatorSet(newState.getValidatorSet(), v1, v2, v3, v4);
 
@@ -74,20 +71,6 @@ public class GenesisTransitionTest {
             }
         }
         assertEquals(cnt, 4);
-    }
-
-    BeaconGenesis.Json getJson(Validator... validators) {
-        BeaconGenesis.Json json = new BeaconGenesis.Json();
-        json.mainChainRef = Hex.toHexString(randomHash());
-        json.parentHash = Hex.toHexString(randomHash());
-        json.randaoReveal = Hex.toHexString(randomHash());
-        json.timestamp = System.currentTimeMillis() / 1000;
-        json.validatorSet = new String[validators.length];
-
-        for (int i = 0; i < validators.length; i++)
-            json.validatorSet[i] = Hex.toHexString(validators[i].getPubKey());
-
-        return json;
     }
 
     static class PredefinedValidatorRepository implements ValidatorRepository {

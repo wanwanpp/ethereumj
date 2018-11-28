@@ -19,7 +19,7 @@ package org.ethereum.sharding.processing;
 
 import org.ethereum.core.Block;
 import org.ethereum.db.DbFlushManager;
-import org.ethereum.sharding.processing.consensus.GenesisTransition;
+import org.ethereum.sharding.processing.consensus.InitialTransition;
 import org.ethereum.sharding.pubsub.Event;
 import org.ethereum.sharding.pubsub.Publisher;
 import org.ethereum.sharding.processing.consensus.ScoreFunction;
@@ -30,7 +30,6 @@ import org.ethereum.sharding.processing.validation.BeaconValidator;
 import org.ethereum.sharding.processing.validation.StateValidator;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.processing.validation.ValidationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +55,7 @@ public class BeaconChainImpl implements BeaconChain {
     BeaconStore store;
 
     StateTransition<BeaconState> transitionFunction;
-    StateTransition<BeaconState> genesisStateTransition;
+    StateTransition<BeaconState> initialStateTransition;
     BeaconValidator beaconValidator;
     StateValidator stateValidator;
     StateRepository repository;
@@ -69,7 +68,7 @@ public class BeaconChainImpl implements BeaconChain {
     public BeaconChainImpl(DbFlushManager beaconDbFlusher, BeaconStore store,
                            StateTransition<BeaconState> transitionFunction, StateRepository repository,
                            BeaconValidator beaconValidator, StateValidator stateValidator,
-                           ScoreFunction scoreFunction, StateTransition<BeaconState> genesisStateTransition) {
+                           ScoreFunction scoreFunction, StateTransition<BeaconState> initialStateTransition) {
         this.beaconDbFlusher = beaconDbFlusher;
         this.store = store;
         this.transitionFunction = transitionFunction;
@@ -77,18 +76,17 @@ public class BeaconChainImpl implements BeaconChain {
         this.beaconValidator = beaconValidator;
         this.stateValidator = stateValidator;
         this.scoreFunction = scoreFunction;
-        this.genesisStateTransition = genesisStateTransition;
+        this.initialStateTransition = initialStateTransition;
     }
 
     @Override
     public void init() {
-        logger.info("Load chain with genesis: {}", BeaconGenesis.instance());
-
-        if (store.getCanonicalHead() == null)
-            insertGenesis();
-
-        canonicalHead = new ScoredChainHead(store.getCanonicalHead(), store.getCanonicalHeadScore(),
-                repository.get(store.getCanonicalHead().getStateHash()));
+        if (store.getCanonicalHead() == null) {
+            canonicalHead = initialChainHead();
+        } else {
+            canonicalHead = new ScoredChainHead(store.getCanonicalHead(), store.getCanonicalHeadScore(),
+                    repository.get(store.getCanonicalHead().getStateHash()));
+        }
 
         publish(onBeaconChainLoaded(canonicalHead.block, canonicalHead.state));
         publish(onBeaconChainSynced(canonicalHead.block, canonicalHead.state));
@@ -96,17 +94,12 @@ public class BeaconChainImpl implements BeaconChain {
         logger.info("Chain loaded with head: {}", canonicalHead.block);
     }
 
-    void insertGenesis() {
-        BeaconGenesis genesis = BeaconGenesis.instance();
+    ScoredChainHead initialChainHead() {
+        return new ScoredChainHead(Beacon.GENESIS, BigInteger.ZERO, initialState());
+    }
 
-        BeaconState genesisState = genesisStateTransition.applyBlock(genesis, repository.getEmpty());
-        repository.insert(genesisState);
-
-        genesis.setStateHash(genesisState.getHash());
-        store.save(genesis, genesis.getScore(), true);
-
-        repository.commit();
-        beaconDbFlusher.flushSync();
+    BeaconState initialState() {
+        return initialStateTransition.applyBlock(Beacon.GENESIS, repository.getEmpty());
     }
 
     @Override
@@ -165,10 +158,13 @@ public class BeaconChainImpl implements BeaconChain {
 
     @Override
     public void setBestBlock(Block block) {
-        ((GenesisTransition) genesisStateTransition).withMainChainRef(block.getHash());
+        ((InitialTransition) initialStateTransition).withMainChainRef(block.getHash());
     }
 
     private Beacon pullParent(Beacon block) {
+        if (block.isParentEmpty())
+            return Beacon.GENESIS;
+
         if (canonicalHead.block.isParentOf(block))
             return canonicalHead.block;
 
@@ -176,6 +172,9 @@ public class BeaconChainImpl implements BeaconChain {
     }
 
     private BeaconState pullState(Beacon block) {
+        if (block.isGenesis())
+            return initialState();
+
         if (canonicalHead.block.equals(block))
             return canonicalHead.state;
 

@@ -1,5 +1,6 @@
 package org.ethereum.sharding.processing.state;
 
+import org.ethereum.config.SystemProperties;
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.datasource.inmem.HashMapDB;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
@@ -59,7 +60,7 @@ public class BeaconStateTest {
                 flattened.getNextShufflingSeed(), flattened.getValidatorSetChangeSlot(),
                 flattened.getLastJustifiedSlot(), flattened.getJustifiedStreak(), flattened.getLastFinalizedSlot(),
                 flattened.getCrosslinks(), flattened.getPendingAttestations(),
-                flattened.getRecentBlockHashes(), flattened.getRandaoMix());
+                flattened.getRecentBlockHashes(), flattened.getRandaoMix(), flattened.getGenesisTime());
     }
 
     BeaconState getRandomState() {
@@ -90,7 +91,7 @@ public class BeaconStateTest {
         return new BeaconState(abs(rnd.nextInt()), validatorSet, committees,
                 HashUtil.randomHash(), abs(rnd.nextInt()) % 100 + 1,
                 abs(rnd.nextInt()) % 100 + 1, abs(rnd.nextInt()) % 100 + 1, abs(rnd.nextInt()) % 100 + 1, links,
-                Collections.emptyList(), recentBlockHashes, HashUtil.randomHash());
+                Collections.emptyList(), recentBlockHashes, HashUtil.randomHash(), System.currentTimeMillis());
     }
     
     void assertStateEquals(BeaconState expected, BeaconState actual) {
@@ -132,5 +133,7 @@ public class BeaconStateTest {
             assertArrayEquals(expected.getPendingAttestations().get(i).getEncoded(),
                     actual.getPendingAttestations().get(i).getEncoded());
         }
+
+        assertEquals(expected.getGenesisTime(), actual.getGenesisTime());
     }
 }

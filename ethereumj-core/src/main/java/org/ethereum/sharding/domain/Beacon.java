@@ -24,13 +24,16 @@ import org.ethereum.util.FastByteComparisons;
 import org.ethereum.util.RLP;
 import org.ethereum.util.RLPElement;
 import org.ethereum.util.RLPList;
+import org.spongycastle.pqc.math.linearalgebra.ByteUtils;
 import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.ethereum.crypto.HashUtil.blake2b;
+import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
 import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 import static org.ethereum.util.ByteUtil.isSingleZero;
 
@@ -56,7 +59,7 @@ public class Beacon {
     private List<AttestationRecord> attestations;
 
     public Beacon(byte[] parentHash, byte[] randaoReveal, byte[] mainChainRef, byte[] stateHash,
-                  long slotNumber,List<AttestationRecord> attestations) {
+                  long slotNumber, List<AttestationRecord> attestations) {
         this.parentHash = parentHash;
         this.randaoReveal = randaoReveal;
         this.mainChainRef = mainChainRef;
@@ -124,6 +127,10 @@ public class Beacon {
         return FastByteComparisons.equal(this.getHash(), other.getParentHash());
     }
 
+    public boolean isParentEmpty() {
+        return FastByteComparisons.equal(this.parentHash, new byte[32]);
+    }
+
     public void setStateHash(byte[] stateHash) {
         this.stateHash = stateHash;
     }
@@ -148,7 +155,7 @@ public class Beacon {
     }
 
     public boolean isGenesis() {
-        return this.slotNumber == 0L;
+        return this == GENESIS;
     }
 
     public static final Serializer<Beacon, byte[]> Serializer = new Serializer<Beacon, byte[]>() {
@@ -160,6 +167,23 @@ public class Beacon {
         @Override
         public Beacon deserialize(byte[] stream) {
             return stream == null ? null : new Beacon(stream);
+        }
+    };
+
+    /**
+     * There is no Genesis block in Beacon chain.
+     * But it's handy to use a stub for it.
+     */
+    public static final Beacon GENESIS = new Beacon(new byte[32], new byte[32], new byte[32],
+            new byte[32], 0L, Collections.emptyList()) {
+        @Override
+        public byte[] getHash() {
+            return new byte[32];
+        }
+
+        @Override
+        public String toString() {
+            return "#0 (Genesis)";
         }
     };
 }

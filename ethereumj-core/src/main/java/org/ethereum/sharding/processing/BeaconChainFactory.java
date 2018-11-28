@@ -21,7 +21,7 @@ import org.ethereum.core.Block;
 import org.ethereum.db.DbFlushManager;
 import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.processing.consensus.BeaconStateTransition;
-import org.ethereum.sharding.processing.consensus.GenesisTransition;
+import org.ethereum.sharding.processing.consensus.InitialTransition;
 import org.ethereum.sharding.processing.consensus.MaximumVotesAsScore;
 import org.ethereum.sharding.processing.consensus.ScoreFunction;
 import org.ethereum.sharding.processing.consensus.StateTransition;
@@ -72,7 +72,7 @@ public class BeaconChainFactory {
                                      ValidatorRepository validatorRepository, Block bestBlock,
                                      Publisher publisher, Sign sign) {
 
-        StateTransition<BeaconState> genesisStateTransition = new GenesisTransition(validatorRepository)
+        StateTransition<BeaconState> genesisStateTransition = new InitialTransition(validatorRepository)
                 .withMainChainRef(bestBlock.getHash());
 
         return create(beaconDbFlusher, store, repository, genesisStateTransition,

@@ -22,7 +22,6 @@ import org.ethereum.config.SystemProperties;
 import org.ethereum.datasource.inmem.HashMapDB;
 import org.ethereum.db.DbFlushManager;
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.processing.consensus.NoTransition;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.db.IndexedBeaconStore;
@@ -41,7 +40,6 @@ import java.util.concurrent.Future;
 
 import static org.ethereum.sharding.processing.ProcessingResult.Best;
 import static org.ethereum.sharding.processing.ProcessingResult.NotBest;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -59,9 +57,8 @@ public class BeaconChainTest {
 
         beaconChain.init();
         Beacon head = beaconChain.getCanonicalHead();
-        assertEquals(BeaconGenesis.instance(), head);
-        assertArrayEquals(helper.repository.getEmpty().getHash(), helper.repository.get(head.getStateHash()).getHash());
-        assertEquals(BeaconGenesis.instance().getScore(), helper.store.getCanonicalHeadScore());
+        assertEquals(Beacon.GENESIS, head);
+        assertEquals(BigInteger.ZERO, helper.store.getCanonicalHeadScore());
     }
 
     @Test
@@ -85,62 +82,60 @@ public class BeaconChainTest {
         Beacon g = beaconChain.getCanonicalHead();
 
         Beacon b1 = helper.createBlock(g);
-        Beacon b2 = helper.createBlock(b1);
-        Beacon b3 = helper.createBlock(b2);
-        Beacon b4 = helper.createBlock(b3, 5);
-        Beacon b5 = helper.createBlock(b4, 7);
-        Beacon b6 = helper.createBlock(b5, 9);
-
-        Beacon b31 = helper.createBlock(b2, 4);
-        Beacon b41 = helper.createBlock(b31);
-
-        Beacon b42 = helper.createBlock(b31, 6);
-
-        Beacon b52 = helper.createBlock(b42);
-        Beacon b53 = helper.createBlock(b42);
-        Beacon b54 = helper.createBlock(b42, 8);
-
         assertEquals(Best, beaconChain.insert(b1));
+
+        Beacon b2 = helper.createBlock(b1);
         assertEquals(Best, beaconChain.insert(b2));
+
+        Beacon b3 = helper.createBlock(b2);
         assertEquals(Best, beaconChain.insert(b3));
         helper.checkCanonical(b1, b2, b3);
 
         // b31 beats b3
+        Beacon b31 = helper.createBlock(b2, 4);
         assertEquals(Best, beaconChain.insert(b31));
         helper.checkCanonical(b1, b2, b31);
 
         // b4 beats b31
+        Beacon b4 = helper.createBlock(b3, 5);
         assertEquals(Best, beaconChain.insert(b4));
         helper.checkCanonical(b1, b2, b3, b4);
 
         // b42 beats b4
+        Beacon b42 = helper.createBlock(b31, 6);
         assertEquals(Best, beaconChain.insert(b42));
         helper.checkCanonical(b1, b2, b31, b42);
 
         // b41 is not best
+        Beacon b41 = helper.createBlock(b31);
         assertEquals(NotBest, beaconChain.insert(b41));
         assertTrue(helper.store.exist(b41.getHash()));
         helper.checkCanonical(b1, b2, b31, b42);
 
         // b5 beats b42
+        Beacon b5 = helper.createBlock(b4, 7);
         assertEquals(Best, beaconChain.insert(b5));
         helper.checkCanonical(b1, b2, b3, b4, b5);
 
         // b52 is not best
+        Beacon b52 = helper.createBlock(b42);
         assertEquals(NotBest, beaconChain.insert(b52));
         assertTrue(helper.store.exist(b52.getHash()));
         helper.checkCanonical(b1, b2, b3, b4, b5);
 
         // b54 beats b5
+        Beacon b54 = helper.createBlock(b42, 8);
         assertEquals(Best, beaconChain.insert(b54));
         helper.checkCanonical(b1, b2, b31, b42, b54);
 
         // b53 is not best
+        Beacon b53 = helper.createBlock(b42);
         assertEquals(NotBest, beaconChain.insert(b53));
         assertTrue(helper.store.exist(b53.getHash()));
         helper.checkCanonical(b1, b2, b31, b42, b54);
 
         // b6 beats b54
+        Beacon b6 = helper.createBlock(b5, 9);
         assertEquals(Best, beaconChain.insert(b6));
         helper.checkCanonical(b1, b2, b3, b4, b5, b6);
     }
@@ -156,7 +151,6 @@ public class BeaconChainTest {
         Beacon b2 = helper.createBlock(b1);
 
         assertEquals(ProcessingResult.NoParent, beaconChain.insert(b2));
-
         beaconChain.insert(b1);
         assertEquals(ProcessingResult.Exist, beaconChain.insert(b1));
     }
@@ -208,7 +202,7 @@ public class BeaconChainTest {
             // save score
             mainChainRef[0] = (byte) score;
 
-            BeaconState parentState = repository.get(parent.getStateHash());
+            BeaconState parentState = pullParentState(parent);
 
             Beacon newBlock = new Beacon(parent.getHash(),
                     randaoReveal, mainChainRef, null, parent.getSlotNumber() + 1, new ArrayList<>());
@@ -216,6 +210,13 @@ public class BeaconChainTest {
             newBlock.setStateHash(newState.getHash());
 
             return newBlock;
+        }
+
+        BeaconState pullParentState(Beacon parent) {
+            BeaconState state = repository.get(parent.getStateHash());
+            if (state == null)
+                state = beaconChain.initialState();
+            return state;
         }
 
         void checkCanonical(Beacon... chain) {

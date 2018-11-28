@@ -21,7 +21,6 @@ import org.ethereum.core.Block;
 import org.ethereum.datasource.inmem.HashMapDB;
 import org.ethereum.sharding.config.ValidatorConfig;
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.processing.consensus.NoTransition;
 import org.ethereum.sharding.processing.consensus.StateTransition;
 import org.ethereum.sharding.processing.db.BeaconStore;
@@ -53,7 +52,7 @@ public class BeaconProposerTest {
         Helper helper = Helper.newInstance();
         BeaconProposer proposer = helper.proposer;
 
-        Beacon newBlock = BeaconGenesis.instance();
+        Beacon newBlock = Beacon.GENESIS;
         helper.insertBlock(newBlock);
         byte[] reveal = helper.randao.revealNext();
 
@@ -89,11 +88,10 @@ public class BeaconProposerTest {
         void insertBlock(Beacon block) {
             if (block.isGenesis()) {
                 recentState = repository.getEmpty();
-                block.setStateHash(recentState.getHash());
             } else {
                 recentState = stateTransition.applyBlock(block, recentState);
+                repository.insert(recentState);
             }
-            repository.insert(recentState);
         }
 
         byte[] newMainChainBlockHash() {

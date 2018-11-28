@@ -18,7 +18,6 @@
 package org.ethereum.sharding.util;
 
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.util.ByteUtil;
@@ -138,28 +137,30 @@ public class BeaconUtils {
      * Calculates a moment in time that specified slot does start from.
      *
      * @param slotNumber slot number
+     * @param genesisTimestamp genesis timestamp
      * @return timestamp in milliseconds
      */
-    public static long getSlotStartTime(long slotNumber) {
-        return BeaconGenesis.instance().getTimestamp() + slotNumber * SLOT_DURATION;
+    public static long getSlotStartTime(long slotNumber, long genesisTimestamp) {
+        return genesisTimestamp + slotNumber * SLOT_DURATION;
     }
 
     /**
      * Calculates a number of slot that given moment of time does fit into.
-     * Uses {@link BeaconGenesis#timestamp} and {@link BeaconConstants#SLOT_DURATION}
+     * Uses {@code genesisTimestamp} and {@link BeaconConstants#SLOT_DURATION}
      *
      * @param timestamp timestamp in milliseconds
+     * @param genesisTimestamp genesis timestamp
      * @return slot number
      */
-    public static long getSlotNumber(long timestamp) {
-        return (timestamp - BeaconGenesis.instance().getTimestamp()) / SLOT_DURATION;
+    public static long getSlotNumber(long timestamp, long genesisTimestamp) {
+        return (timestamp - genesisTimestamp) / SLOT_DURATION;
     }
 
     /**
      * Calculates a number of the slot that current moment in time does fit into.
      */
-    public static long getCurrentSlotNumber() {
-        return getSlotNumber(System.currentTimeMillis());
+    public static long getCurrentSlotNumber(long genesisTimestamp) {
+        return getSlotNumber(System.currentTimeMillis(), genesisTimestamp);
     }
 
     public static byte[] calcMessageHash(long slot, List<byte[]> parentHashes,
