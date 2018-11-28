@@ -90,13 +90,11 @@ public class ValidatorServiceImpl implements ValidatorService {
     }
 
     @Override
-    public void init(ChainHead head, byte[]... pubKeys) {
-        assert pubKeys.length > 0;
-
+    public void init(ChainHead head) {
         this.head = head;
         this.mainChainRef = getMainChainRef(blockStore.getBestBlock());
 
-        for (byte[] pubKey : pubKeys) {
+        for (byte[] pubKey : config.getPubKeys()) {
             Validator validator = this.head.state.getValidatorSet().getByPubKey(pubKey);
             if (validator != null) {
                 this.pubKeysMap.put(validator.getIndex(), validator.getPubKey());

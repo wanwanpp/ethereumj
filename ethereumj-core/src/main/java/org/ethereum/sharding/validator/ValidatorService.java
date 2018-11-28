@@ -40,7 +40,7 @@ public interface ValidatorService {
     /**
      * Initializes service.
      */
-    default void init(ChainHead head, byte[]... pubKeys) {}
+    default void init(ChainHead head) {}
 
     /**
      * Submits a task to propose block with given slot number.

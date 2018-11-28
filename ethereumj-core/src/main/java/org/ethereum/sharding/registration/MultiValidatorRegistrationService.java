@@ -6,7 +6,6 @@ import org.ethereum.listener.EthereumListenerAdapter;
 import org.ethereum.sharding.config.ValidatorConfig;
 import org.ethereum.sharding.contract.DepositContract;
 import org.ethereum.sharding.crypto.DepositAuthority;
-import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.pubsub.Publisher;
 import org.ethereum.sharding.util.Randao;
@@ -20,7 +19,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static org.ethereum.sharding.validator.BeaconProposer.SLOT_DURATION;
 import static org.ethereum.sharding.pubsub.Events.onValidatorStateUpdated;
@@ -47,7 +45,6 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
     Publisher publisher;
 
     private State state = Undefined;
-    private List<byte[]> pubKeys;
 
     public MultiValidatorRegistrationService(Ethereum ethereum, ValidatorConfig config, DepositContract depositContract,
                                              DepositAuthority depositAuthority, Randao randao, Publisher publisher) {
@@ -59,7 +56,6 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
         this.depositAuthority = depositAuthority;
         this.randao = randao;
         this.publisher = publisher;
-        this.pubKeys = fetchPubKeys();
     }
 
     @Override
@@ -88,11 +84,6 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
         return state;
     }
 
-    @Override
-    public byte[][] pubKeys() {
-        return pubKeys.toArray(new byte[pubKeys.size()][]);
-    }
-
     byte[] initRandao() {
         // generate randao images
         return randao.generate(RANDAO_ROUNDS);
@@ -118,7 +109,7 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
                     }
                 } else {
                     logger.error("Validator: {}, deposit failed with error: {}",
-                            HashUtil.shortHash(config.pubKey()), t.getMessage());
+                            HashUtil.shortHash(pubKey), t.getMessage());
                     updateState(DepositFailed);
                 }
             });
@@ -138,7 +129,7 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
 
     List<byte[]> notYetDeposited() {
         List<byte[]> ret = new ArrayList<>();
-        for (byte[] pubKey : pubKeys) {
+        for (byte[] pubKey : config.getPubKeys()) {
             if (!depositContract.usedPubKey(pubKey)) {
                 ret.add(pubKey);
             }
@@ -147,16 +138,11 @@ public class MultiValidatorRegistrationService implements ValidatorRegistrationS
     }
 
     boolean isEnlisted() {
-        for (byte[] pubKey : pubKeys) {
+        for (byte[] pubKey : config.getPubKeys()) {
             if (!depositContract.usedPubKey(pubKey)) {
                 return false;
             }
         }
         return true;
-    }
-
-    List<byte[]> fetchPubKeys() {
-        return BeaconGenesis.instance().getInitialValidators()
-                .stream().map(Hex::decode).collect(Collectors.toList());
     }
 }

@@ -17,7 +17,6 @@
  */
 package org.ethereum.sharding.processing.consensus;
 
-import com.google.common.base.Functions;
 import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.domain.BeaconGenesis;
 import org.ethereum.sharding.domain.Validator;
@@ -26,10 +25,8 @@ import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.Crosslink;
 import org.ethereum.sharding.registration.ValidatorRepository;
-import org.spongycastle.util.encoders.Hex;
 
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.List;
 
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.SHARD_COUNT;
 
@@ -76,16 +73,8 @@ public class GenesisTransition implements StateTransition<BeaconState> {
 
         @Override
         public ValidatorSet applyBlock(Beacon block, ValidatorSet set) {
-            BeaconGenesis genesis = (BeaconGenesis) block;
-
-            Map<String, Validator> registered = validatorRepository.query(mainChainRef)
-                    .stream().collect(Collectors.toMap(v -> Hex.toHexString(v.getPubKey()), Functions.identity()));
-
-            genesis.getInitialValidators().forEach(pubKey -> {
-                Validator v = registered.get(pubKey);
-                if (v != null) set.add(v);
-            });
-
+            List<Validator> registered = validatorRepository.query(mainChainRef);
+            registered.forEach(set::add);
             return set;
         }
     }

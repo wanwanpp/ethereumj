@@ -20,11 +20,15 @@ package org.ethereum.sharding.config;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
+import com.typesafe.config.ConfigValueType;
+import org.ethereum.sharding.util.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spongycastle.util.encoders.Hex;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Serves as a provider of validator configuration including {@code pubKey} and withdrawal credentials.
@@ -45,7 +49,7 @@ public class ValidatorConfig {
     public static final ValidatorConfig DISABLED = new ValidatorConfig();
 
     boolean enabled = false;
-    byte[] pubKey;
+    List<byte[]> pubKeys;
     long withdrawalShard;
     byte[] withdrawalAddress;
 
@@ -57,7 +61,11 @@ public class ValidatorConfig {
     }
 
     public byte[] pubKey() {
-        return pubKey;
+        return pubKeys.get(0);
+    }
+
+    public List<byte[]> getPubKeys() {
+        return pubKeys;
     }
 
     public long withdrawalShard() {
@@ -75,7 +83,7 @@ public class ValidatorConfig {
     public ValidatorConfig(boolean enabled, byte[] pubKey, long withdrawalShard,
                            byte[] withdrawalAddress, byte[] depositPrivKey) {
         this.enabled = enabled;
-        this.pubKey = pubKey;
+        this.pubKeys = Collections.singletonList(pubKey);
         this.withdrawalShard = withdrawalShard;
         this.withdrawalAddress = withdrawalAddress;
         this.depositPrivKey = depositPrivKey;
@@ -93,10 +101,20 @@ public class ValidatorConfig {
 
             ValidatorConfig config = new ValidatorConfig();
             config.enabled = true;
-            config.pubKey = Hex.decode(fileCfg.getString("beacon.validator.pubKey"));
             config.withdrawalShard = fileCfg.getLong("beacon.validator.withdrawal.shard");
-            config.withdrawalAddress = Hex.decode(fileCfg.getString("beacon.validator.withdrawal.address"));
-            config.depositPrivKey = Hex.decode(fileCfg.getString("beacon.validator.depositPrivKey"));
+            config.withdrawalAddress = Hex.fromHexString(fileCfg.getString("beacon.validator.withdrawal.address"));
+            config.depositPrivKey = Hex.fromHexString(fileCfg.getString("beacon.validator.depositPrivKey"));
+
+            ConfigValueType type = fileCfg.getValue("beacon.validator.pubKey").valueType();
+            if (type == ConfigValueType.LIST) {
+                config.pubKeys = fileCfg.getStringList("beacon.validator.pubKey")
+                        .stream().map(Hex::fromHexString).collect(Collectors.toList());
+            } else {
+                config.pubKeys = Collections.singletonList(Hex.fromHexString(fileCfg.getString("beacon.validator.pubKey")));
+            }
+
+            // it must not be empty
+            assert config.pubKeys.size() > 0;
 
             return config;
         } catch (Throwable t) {

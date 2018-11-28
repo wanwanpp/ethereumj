@@ -41,14 +41,6 @@ public interface ValidatorRegistrationService {
         return State.Disabled;
     }
 
-    /**
-     * Returns validators public keys,
-     * yep, there could be several keys, check implementation for details.
-     */
-    default byte[][] pubKeys() {
-        return new byte[][] {};
-    }
-
     enum State {
         Undefined,
         Disabled,

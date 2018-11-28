@@ -62,7 +62,7 @@ public class GenesisTransitionTest {
         GenesisTransition transition = new GenesisTransition(validatorRepository);
         BeaconState newState = transition.applyBlock(genesis, stateRepository.getEmpty());
 
-        checkValidatorSet(newState.getValidatorSet(), v1, v3, v4);
+        checkValidatorSet(newState.getValidatorSet(), v1, v2, v3, v4);
 
         // check committees
         int cnt = 0;
@@ -70,10 +70,10 @@ public class GenesisTransitionTest {
             if (slot[0].getValidators().length > 0) {
                 cnt += 1;
                 assertEquals(0L, slot[0].getShardId());
-                assertTrue(slot[0].getValidators()[0] >= 0 && slot[0].getValidators()[0] <= 2);
+                assertTrue(slot[0].getValidators()[0] >= 0 && slot[0].getValidators()[0] <= 3);
             }
         }
-        assertEquals(cnt, 3);
+        assertEquals(cnt, 4);
     }
 
     BeaconGenesis.Json getJson(Validator... validators) {

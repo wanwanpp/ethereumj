@@ -98,11 +98,6 @@ public class ValidatorRegistrationServiceImpl implements ValidatorRegistrationSe
         return state;
     }
 
-    @Override
-    public byte[][] pubKeys() {
-        return new byte[][] { config.pubKey() };
-    }
-
     byte[] initRandao() {
         // generate randao images
         return randao.generate(RANDAO_ROUNDS);
