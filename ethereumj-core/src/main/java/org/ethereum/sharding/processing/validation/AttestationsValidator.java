@@ -19,13 +19,16 @@ package org.ethereum.sharding.processing.validation;
 
 import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.domain.Beacon;
+import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.sharding.processing.state.AttestationData;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
+import org.ethereum.sharding.processing.state.ProposalSignedData;
 import org.ethereum.sharding.processing.state.StateRepository;
+import org.ethereum.sharding.util.BeaconUtils;
 import org.ethereum.sharding.util.Bitfield;
 import org.ethereum.sharding.util.HashUtils;
 import org.ethereum.util.ByteUtil;
@@ -36,9 +39,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.BEACON_CHAIN_SHARD_ID;
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.MAX_ATTESTATION_COUNT;
-import static org.ethereum.sharding.processing.consensus.BeaconConstants.MIN_ATTESTATION_INCLUSION_DELAY;
 import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidAttestations;
 import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidProposerSignature;
 import static org.ethereum.sharding.processing.validation.ValidationResult.Success;
@@ -85,28 +87,22 @@ public class AttestationsValidator implements BeaconValidator {
      * along with the block in the network message object
      */
     static final ValidationRule<Data> ProposerAttestationRule = (block, data) -> {
-        if (block.getSlotNumber() == 0) {
+        if (block.isGenesis()) {
             return Success;
         }
 
-        Committee[][] committees = data.state.getCommittees();
-
-        int index = (int) data.parent.getSlotNumber() % committees.length;
-
-        if (block.getAttestations().isEmpty()) {
+        int proposerIdx = BeaconUtils.getProposerIndex(data.state.getCommittees(), block.getSlot());
+        if (proposerIdx < 0) {
             return InvalidProposerSignature;
         }
+        Validator proposer = data.state.getValidatorSet().get(proposerIdx);
+        assert proposer != null;
 
-        AttestationRecord proposerAttestation = block.getAttestations().get(0);
+        ProposalSignedData proposalData = new ProposalSignedData(block.getSlot(), BEACON_CHAIN_SHARD_ID,
+                block.getHashWithoutSignature());
 
-        if (proposerAttestation.getData().getSlot() != data.parent.getSlotNumber()) {
-            return InvalidProposerSignature;
-        }
-        if (!equal(data.parent.getHash(), proposerAttestation.getData().getShardBlockHash())) {
-            return InvalidProposerSignature;
-        }
-
-        if (!proposerAttestation.getAttesterBitfield().hasVoted(index)) {
+        if (!data.sign.verify(block.getProposerSignature(), proposalData.getHash(),
+                ByteUtil.bytesToBigInteger(proposer.getPubKey()))) {
             return InvalidProposerSignature;
         }
 
@@ -118,7 +114,7 @@ public class AttestationsValidator implements BeaconValidator {
             AttestationData signedData = attestation.getData();
 
             // Is not acceptable in block slot
-            if (!signedData.isAcceptableIn(block.getSlotNumber())) {
+            if (!signedData.isAcceptableIn(block.getSlot())) {
                 return InvalidAttestations;
             }
 
@@ -129,7 +125,7 @@ public class AttestationsValidator implements BeaconValidator {
 
             // Hash of the block with justified slot does not equal to justifiedBlockHash
             byte[] justifiedBlockHash = data.state.getRecentBlockHashForSlot(
-                    signedData.getJustifiedSlot(), block.getSlotNumber());
+                    signedData.getJustifiedSlot(), block.getSlot());
             if (!equal(signedData.getJustifiedBlockHash(), justifiedBlockHash)) {
                 return InvalidAttestations;
             }
@@ -183,11 +179,11 @@ public class AttestationsValidator implements BeaconValidator {
     public ValidationResult validateAndLog(Beacon block) {
         Beacon parent = store.getByHash(block.getParentHash());
         assert parent != null;
-        BeaconState state = repository.get(parent.getStateHash());
+        BeaconState state = repository.get(parent.getStateRoot());
         assert state != null;
 
         for (ValidationRule<Data> rule : rules) {
-            ValidationResult res = rule.apply(block, new Data(parent, state, store, sign));
+            ValidationResult res = rule.apply(block, new Data(state, store, sign));
             if (res != Success) {
                 logger.info("Process attestations validation in block {}, status: {}", block.toString(), res);
                 return res;
@@ -198,13 +194,11 @@ public class AttestationsValidator implements BeaconValidator {
     }
 
     static class Data {
-        Beacon parent;
         BeaconState state;
         Sign sign;
         BeaconStore store;
 
-        public Data(Beacon parent, BeaconState state, BeaconStore store, Sign sign) {
-            this.parent = parent;
+        public Data(BeaconState state, BeaconStore store, Sign sign) {
             this.state = state;
             this.store = store;
             this.sign = sign;

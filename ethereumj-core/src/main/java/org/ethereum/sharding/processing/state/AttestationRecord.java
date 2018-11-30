@@ -19,13 +19,10 @@ package org.ethereum.sharding.processing.state;
 
 import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.util.Bitfield;
-import org.ethereum.util.ByteUtil;
 import org.ethereum.util.RLP;
 import org.ethereum.util.RLPList;
 
 import java.util.Arrays;
-
-import static org.ethereum.util.ByteUtil.bigIntegerToBytes;
 
 /**
  * Slot attestation data
@@ -70,27 +67,18 @@ public class AttestationRecord {
 
     public AttestationRecord(byte[] encoded) {
         RLPList list = RLP.unwrapList(encoded);
-
         this.data = new AttestationData(list.get(0).getRLPData());
         this.attesterBitfield = new Bitfield(list.get(1).getRLPData());
         this.pocBitfield = new Bitfield(list.get(2).getRLPData());
-
-        RLPList sigList = RLP.unwrapList(list.get(3).getRLPData());
-        this.aggregateSig = new Sign.Signature();
-        this.aggregateSig.r = ByteUtil.bytesToBigInteger(sigList.get(0).getRLPData());
-        this.aggregateSig.s = ByteUtil.bytesToBigInteger(sigList.get(1).getRLPData());
+        this.aggregateSig = new Sign.Signature(list.get(3).getRLPData());
     }
 
     public byte[] getEncoded() {
-        byte[][] encodedAggSig = new byte[2][];
-        encodedAggSig[0] = bigIntegerToBytes(aggregateSig.r);
-        encodedAggSig[1] = bigIntegerToBytes(aggregateSig.s);
-
         return RLP.wrapList(
                 data.getEncoded(),
                 attesterBitfield.getData(),
                 pocBitfield.getData(),
-                RLP.wrapList(encodedAggSig));
+                aggregateSig.getEncoded());
     }
 
     @Override

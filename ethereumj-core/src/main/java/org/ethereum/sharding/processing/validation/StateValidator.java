@@ -37,7 +37,7 @@ public class StateValidator {
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
     ValidationRule<BeaconState> rule = (block, state) -> {
-        if (!FastByteComparisons.equal(block.getStateHash(), state.getHash()))
+        if (!FastByteComparisons.equal(block.getStateRoot(), state.getHash()))
             return StateMismatch;
 
         return Success;

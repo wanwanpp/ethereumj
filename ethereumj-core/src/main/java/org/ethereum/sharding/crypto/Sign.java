@@ -1,8 +1,14 @@
 package org.ethereum.sharding.crypto;
 
+import org.ethereum.util.RLP;
+import org.ethereum.util.RLPList;
+
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Objects;
+
+import static org.ethereum.util.ByteUtil.bigIntegerToBytes;
+import static org.ethereum.util.ByteUtil.bytesToBigInteger;
 
 /**
  * Signature utilities
@@ -38,6 +44,22 @@ public interface Sign {
     class Signature {
         public BigInteger r;
         public BigInteger s;
+
+        public byte[] getEncoded() {
+            return RLP.wrapList(
+                    bigIntegerToBytes(r),
+                    bigIntegerToBytes(s)
+            );
+        }
+
+        public Signature() {
+        }
+
+        public Signature(byte[] encoded) {
+            RLPList list = RLP.unwrapList(encoded);
+            this.r = bytesToBigInteger(list.get(0).getRLPData());
+            this.s = bytesToBigInteger(list.get(1).getRLPData());
+        }
 
         @Override
         public boolean equals(Object o) {

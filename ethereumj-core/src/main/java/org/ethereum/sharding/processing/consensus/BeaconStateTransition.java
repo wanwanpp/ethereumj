@@ -44,8 +44,9 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
     BeaconStore store;
     CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
 
-    public BeaconStateTransition(Publisher publisher) {
+    public BeaconStateTransition(Publisher publisher, BeaconStore store) {
         this.publisher = publisher;
+        this.store = store;
     }
 
     public BeaconStateTransition() {
@@ -54,24 +55,27 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
     @Override
     public BeaconState applyBlock(Beacon block, BeaconState to) {
         BeaconState ret = to;
-        Beacon parent = store.getByHash(block.getParentHash());
 
         // update recent block hashes
-        ret = ret.appendRecentBlockHashes(block, parent.getSlotNumber());
+        if (!block.isParentEmpty() && store != null) {
+            Beacon parent = store.getByHash(block.getParentHash());
+            assert parent != null;
+            ret = ret.appendRecentBlockHashes(block, parent.getSlot());
+        }
 
         ret = ret.addPendingAttestationsFromBlock(block);
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
 
-        if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
+        if (block.getSlot() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
             logger.info("Process cycle transition, slot: {}, prev slot: {}",
-                    block.getSlotNumber(), to.getLastStateRecalculationSlot());
+                    block.getSlot(), to.getLastStateRecalculationSlot());
 
             // FIXME add finality transition
 
-            if (block.getSlotNumber() - to.getValidatorSetChangeSlot() >= MIN_VALIDATOR_SET_CHANGE_INTERVAL) {
+            if (block.getSlot() - to.getValidatorSetChangeSlot() >= MIN_VALIDATOR_SET_CHANGE_INTERVAL) {
 
                 logger.info("Change validator set, slot: {}, prev slot: {}",
-                        block.getSlotNumber(), to.getValidatorSetChangeSlot());
+                        block.getSlot(), to.getValidatorSetChangeSlot());
 
                 // FIXME onboard new validators from PoW chain
                 ValidatorSet validatorSet = to.getValidatorSet();

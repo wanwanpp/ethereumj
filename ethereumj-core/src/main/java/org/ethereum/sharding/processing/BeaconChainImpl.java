@@ -85,7 +85,7 @@ public class BeaconChainImpl implements BeaconChain {
             canonicalHead = initialChainHead();
         } else {
             canonicalHead = new ScoredChainHead(store.getCanonicalHead(), store.getCanonicalHeadScore(),
-                    repository.get(store.getCanonicalHead().getStateHash()));
+                    repository.get(store.getCanonicalHead().getStateRoot()));
         }
 
         publish(onBeaconChainLoaded(canonicalHead.block, canonicalHead.state));
@@ -178,7 +178,7 @@ public class BeaconChainImpl implements BeaconChain {
         if (canonicalHead.block.equals(block))
             return canonicalHead.state;
 
-        return repository.get(block.getStateHash());
+        return repository.get(block.getStateRoot());
     }
 
     void publish(Event e) {

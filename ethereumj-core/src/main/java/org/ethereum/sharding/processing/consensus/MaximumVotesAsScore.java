@@ -76,7 +76,7 @@ public class MaximumVotesAsScore implements ScoreFunction {
 
         int maxVotes = 0;
         Beacon current = block;
-        while (current.getSlotNumber() != lastJustified) {
+        while (current.getSlot() != lastJustified) {
             int currentVotes = 0;
             List<ProcessedAttestation> blockAttestations = perBlockAttestations.get(new ByteArrayWrapper(current.getHash()));
             if (blockAttestations != null && !blockAttestations.isEmpty()) {

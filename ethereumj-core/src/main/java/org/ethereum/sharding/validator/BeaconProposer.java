@@ -60,10 +60,7 @@ public interface BeaconProposer {
         }
 
         public Input(long slotNumber, ValidatorService.ChainHead head, byte[] mainChainRef) {
-            this.slotNumber = slotNumber;
-            this.parent = head.block;
-            this.state = head.state;
-            this.mainChainRef = mainChainRef;
+            this (slotNumber, head.block, head.state, mainChainRef);
         }
     }
 }

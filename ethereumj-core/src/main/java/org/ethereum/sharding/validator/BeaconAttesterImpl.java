@@ -57,11 +57,11 @@ public class BeaconAttesterImpl implements BeaconAttester {
                 in.slotNumber,
                 in.index.getShardId(),
                 in.block.getHash(),
-                in.state.getCycleBoundaryHash(in.block.getSlotNumber()),
+                in.state.getCycleBoundaryHash(in.block.getSlot()),
                 HashUtils.ZERO_HASH32,
                 HashUtils.ZERO_HASH32,
                 justifiedSlot,
-                in.state.getRecentBlockHashForSlot(justifiedSlot, in.block.getSlotNumber())
+                in.state.getRecentBlockHashForSlot(justifiedSlot, in.block.getSlot())
         );
 
         Sign.Signature aggSignature = sign.aggSigns(Collections.singletonList(

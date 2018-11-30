@@ -81,7 +81,7 @@ public class BeaconChainFactory {
 
     public static StateTransition<BeaconState> stateTransition(Publisher publisher, BeaconStore store) {
         if (stateTransition == null)
-            stateTransition = new BeaconStateTransition(publisher);
+            stateTransition = new BeaconStateTransition(publisher, store);
         return stateTransition;
     }
 }

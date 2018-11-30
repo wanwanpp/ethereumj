@@ -81,8 +81,8 @@ public class BeaconProposerTest {
             assertTrue(parent.isParentOf(newBlock));
             assertArrayEquals(prevReveal, blake2b(newBlock.getRandaoReveal()));
             assertArrayEquals(mainChainRef, newBlock.getMainChainRef());
-            assertEquals(slotNumber, newBlock.getSlotNumber());
-            assertArrayEquals(recentState.getHash(), newBlock.getStateHash());
+            assertEquals(slotNumber, newBlock.getSlot());
+            assertArrayEquals(recentState.getHash(), newBlock.getStateRoot());
         }
 
         void insertBlock(Beacon block) {

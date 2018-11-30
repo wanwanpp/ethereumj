@@ -19,9 +19,12 @@ package org.ethereum.sharding.validator;
 
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.sharding.config.ValidatorConfig;
+import org.ethereum.sharding.crypto.DummySign;
+import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.db.BeaconStore;
+import org.ethereum.sharding.processing.state.ProposalSignedData;
 import org.ethereum.sharding.pubsub.BeaconChainSynced;
 import org.ethereum.sharding.processing.consensus.StateTransition;
 import org.ethereum.sharding.processing.state.BeaconState;
@@ -29,6 +32,9 @@ import org.ethereum.sharding.processing.state.StateRepository;
 import org.ethereum.sharding.util.Randao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.BEACON_CHAIN_SHARD_ID;
+import static org.ethereum.util.ByteUtil.bytesToBigInteger;
 
 /**
  * Default implementation of {@link BeaconProposer}.
@@ -50,6 +56,7 @@ public class BeaconProposerImpl implements BeaconProposer {
     ValidatorConfig config;
     BeaconStore store;
     AttestationPool attestationPool;
+    Sign sign = new DummySign();
 
     public BeaconProposerImpl(Randao randao, StateRepository repository, BeaconStore store,
                               StateTransition<BeaconState> stateTransition, ValidatorConfig config,
@@ -82,8 +89,15 @@ public class BeaconProposerImpl implements BeaconProposer {
         Beacon lastJustified = store.getCanonicalByNumber(in.state.getJustificationSource());
         Beacon block = new Beacon(in.parent.getHash(), randaoReveal(in.state, pubKey), in.mainChainRef,
                 HashUtil.EMPTY_DATA_HASH, in.slotNumber, attestationPool.getAttestations(in.slotNumber, lastJustified));
+
+        // sign off on proposed block
+        ProposalSignedData proposalData = new ProposalSignedData(block.getSlot(), BEACON_CHAIN_SHARD_ID,
+                block.getHashWithoutSignature());
+        Sign.Signature proposerSignature = sign.sign(proposalData.getHash(), bytesToBigInteger(pubKey));
+        block.setProposerSignature(proposerSignature);
+
         BeaconState newState = stateTransition.applyBlock(block, in.state);
-        block.setStateHash(newState.getHash());
+        block.setStateRoot(newState.getHash());
         logger.info("New block created {}", block);
         return block;
     }

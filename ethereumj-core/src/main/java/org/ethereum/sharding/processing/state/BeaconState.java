@@ -252,7 +252,7 @@ public class BeaconState {
     public BeaconState addPendingAttestationsFromBlock(Beacon block) {
         List<ProcessedAttestation> updatedAttestations = new ArrayList<>(pendingAttestations);
         block.getAttestations().forEach(record ->
-                updatedAttestations.add(new ProcessedAttestation(record, block.getSlotNumber())));
+                updatedAttestations.add(new ProcessedAttestation(record, block.getSlot())));
         return withPendingAttestations(updatedAttestations);
     }
 
@@ -268,7 +268,7 @@ public class BeaconState {
 
     public BeaconState appendRecentBlockHashes(Beacon block, long parentSlot) {
         List<byte[]> recentBlockHashes = new ArrayList<>(this.recentBlockHashes);
-        for (long i = parentSlot; i < block.getSlotNumber(); i++) {
+        for (long i = parentSlot; i < block.getSlot(); i++) {
             recentBlockHashes.add(block.getHash());
         }
         return withRecentBlockHashes(recentBlockHashes);
@@ -295,7 +295,7 @@ public class BeaconState {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || !(o instanceof BeaconState)) return false;
+        if (o == null || getClass() != o.getClass()) return false;
 
         return FastByteComparisons.equal(((BeaconState) o).getHash(), this.getHash());
     }

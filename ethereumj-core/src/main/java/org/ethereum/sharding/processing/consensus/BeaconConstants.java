@@ -70,4 +70,9 @@ public interface BeaconConstants {
      * Minimal delay for the attestation to be included into a block
      */
     long MIN_ATTESTATION_INCLUSION_DELAY = 4; // 4 slots
+
+    /**
+     * Shard id of the beacon chain
+     */
+    int BEACON_CHAIN_SHARD_ID = 0xffffffff;
 }

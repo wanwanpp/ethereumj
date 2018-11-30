@@ -166,7 +166,7 @@ public class BeaconChainTest {
         byte[] incorrectHash = new byte[32];
         new Random().nextBytes(incorrectHash);
 
-        b1.setStateHash(incorrectHash);
+        b1.setStateRoot(incorrectHash);
 
         assertEquals(ProcessingResult.ConsensusBreak, beaconChain.insert(b1));
     }
@@ -188,7 +188,7 @@ public class BeaconChainTest {
         }
 
         Beacon createBlock(Beacon parent) {
-            return createBlock(parent, parent.getSlotNumber() + 1);
+            return createBlock(parent, parent.getSlot() + 1);
         }
 
         Beacon createBlock(Beacon parent, long score) {
@@ -205,15 +205,15 @@ public class BeaconChainTest {
             BeaconState parentState = pullParentState(parent);
 
             Beacon newBlock = new Beacon(parent.getHash(),
-                    randaoReveal, mainChainRef, null, parent.getSlotNumber() + 1, new ArrayList<>());
+                    randaoReveal, mainChainRef, null, parent.getSlot() + 1, new ArrayList<>());
             BeaconState newState = beaconChain.transitionFunction.applyBlock(newBlock, parentState);
-            newBlock.setStateHash(newState.getHash());
+            newBlock.setStateRoot(newState.getHash());
 
             return newBlock;
         }
 
         BeaconState pullParentState(Beacon parent) {
-            BeaconState state = repository.get(parent.getStateHash());
+            BeaconState state = repository.get(parent.getStateRoot());
             if (state == null)
                 state = beaconChain.initialState();
             return state;
@@ -232,7 +232,7 @@ public class BeaconChainTest {
             Beacon expectedHead = chain[chain.length - 1];
             assertEquals(expectedHead, beaconChain.getCanonicalHead());
             assertEquals(expectedScore, beaconChain.store.getCanonicalHeadScore());
-            assertNotNull(repository.get(expectedHead.getStateHash()));
+            assertNotNull(repository.get(expectedHead.getStateRoot()));
         }
     }
 

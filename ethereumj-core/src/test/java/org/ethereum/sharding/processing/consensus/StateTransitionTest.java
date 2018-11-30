@@ -33,7 +33,7 @@ public class StateTransitionTest {
             @Override
             public BeaconState applyBlock(Beacon block, BeaconState to) {
                 BeaconState ret = to;
-                if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
+                if (block.getSlot() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
                     ValidatorSet validators = validatorTransition(validator).applyBlock(block, ret.getValidatorSet());
                     ret = ret.withValidatorSet(validators);
                 }

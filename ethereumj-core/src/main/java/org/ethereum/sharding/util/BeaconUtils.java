@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.SLOT_DURATION;
 
 
@@ -40,7 +41,7 @@ public class BeaconUtils {
      * Shortcut to {@link #cycleStartSlot(long)}
      */
     public static long cycleStartSlot(Beacon block) {
-        return cycleStartSlot(block.getSlotNumber());
+        return cycleStartSlot(block.getSlot());
     }
 
     /**
@@ -157,5 +158,19 @@ public class BeaconUtils {
      */
     public static long getCurrentSlotNumber(long genesisTimestamp) {
         return getSlotNumber(System.currentTimeMillis(), genesisTimestamp);
+    }
+
+    /**
+     * Returns an index of validator that is assigned to propose a block with given slot
+     * @return validator idx or -1 if there were no validators assigned to the slot
+     */
+    public static int getProposerIndex(Committee[][] committees, long slot) {
+        Committee[] slotCommittee = committees[(int) slot % CYCLE_LENGTH];
+        if (slotCommittee[0].getValidators().length > 0) {
+            int arrayIdx = (int) slot % slotCommittee[0].getValidators().length;
+            return slotCommittee[0].getValidators()[arrayIdx];
+        } else {
+            return -1;
+        }
     }
 }

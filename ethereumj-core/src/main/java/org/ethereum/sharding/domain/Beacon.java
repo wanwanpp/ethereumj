@@ -18,13 +18,13 @@
 package org.ethereum.sharding.domain;
 
 import org.ethereum.datasource.Serializer;
+import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.util.ByteUtil;
 import org.ethereum.util.FastByteComparisons;
 import org.ethereum.util.RLP;
 import org.ethereum.util.RLPElement;
 import org.ethereum.util.RLPList;
-import org.spongycastle.pqc.math.linearalgebra.ByteUtils;
 import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
@@ -33,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.ethereum.crypto.HashUtil.blake2b;
-import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
 import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 import static org.ethereum.util.ByteUtil.isSingleZero;
 
@@ -47,25 +46,33 @@ public class Beacon {
 
     /* Hash of the parent block */
     private byte[] parentHash;
-    /* Randao commitment reveal */
+    /* Proposer RANDAO reveal */
     private byte[] randaoReveal;
     /* Reference to main chain block */
     private byte[] mainChainRef;
-    /* Hash of the state */
-    private byte[] stateHash;
+    /* State root */
+    private byte[] stateRoot;
     /* Slot number */
-    private long slotNumber;
+    private long slot;
     /* Attestations */
     private List<AttestationRecord> attestations;
+    /* Proposer signature */
+    private Sign.Signature proposerSignature;
 
-    public Beacon(byte[] parentHash, byte[] randaoReveal, byte[] mainChainRef, byte[] stateHash,
-                  long slotNumber, List<AttestationRecord> attestations) {
+    public Beacon(byte[] parentHash, byte[] randaoReveal, byte[] mainChainRef, byte[] stateRoot,
+                  long slot, List<AttestationRecord> attestations, Sign.Signature proposerSignature) {
         this.parentHash = parentHash;
         this.randaoReveal = randaoReveal;
         this.mainChainRef = mainChainRef;
-        this.stateHash = stateHash;
-        this.slotNumber = slotNumber;
+        this.stateRoot = stateRoot;
+        this.slot = slot;
         this.attestations = attestations;
+        this.proposerSignature = proposerSignature;
+    }
+
+    public Beacon(byte[] parentHash, byte[] randaoReveal, byte[] mainChainRef, byte[] stateRoot,
+                  long slot, List<AttestationRecord> attestations) {
+        this(parentHash, randaoReveal, mainChainRef, stateRoot, slot, attestations, new Sign.Signature());
     }
 
     public Beacon(byte[] rlp) {
@@ -73,8 +80,8 @@ public class Beacon {
         this.parentHash = items.get(0).getRLPData();
         this.randaoReveal = items.get(1).getRLPData();
         this.mainChainRef = items.get(2).getRLPData();
-        this.stateHash = items.get(3).getRLPData();
-        this.slotNumber = ByteUtil.bytesToBigInteger(items.get(4).getRLPData()).longValue();
+        this.stateRoot = items.get(3).getRLPData();
+        this.slot = ByteUtil.bytesToBigInteger(items.get(4).getRLPData()).longValue();
 
         this.attestations = new ArrayList<>();
         if (!isSingleZero(items.get(5).getRLPData())) {
@@ -83,20 +90,27 @@ public class Beacon {
                 attestations.add(new AttestationRecord(anAttestationsRlp.getRLPData()));
             }
         }
+        this.proposerSignature = new Sign.Signature(items.get(6).getRLPData());
     }
 
-    public byte[] getEncoded() {
+    public byte[] getEncoded(boolean withSignature) {
         byte[][] encodedAttestations = new byte[attestations.size()][];
         for (int i = 0; i < attestations.size(); i++)
             encodedAttestations[i] = attestations.get(i).getEncoded();
 
-        return RLP.wrapList(parentHash, randaoReveal, mainChainRef, stateHash,
-                BigInteger.valueOf(slotNumber).toByteArray(),
-                encodedAttestations.length == 0 ? ZERO_BYTE_ARRAY : RLP.wrapList(encodedAttestations));
+        return RLP.wrapList(parentHash, randaoReveal, mainChainRef, stateRoot,
+                BigInteger.valueOf(slot).toByteArray(),
+                encodedAttestations.length == 0 ? ZERO_BYTE_ARRAY : RLP.wrapList(encodedAttestations),
+                withSignature && proposerSignature != null ? proposerSignature.getEncoded() :
+                        new Sign.Signature().getEncoded());
     }
 
     public byte[] getHash() {
-        return blake2b(getEncoded());
+        return blake2b(getEncoded(true));
+    }
+
+    public byte[] getHashWithoutSignature() {
+        return blake2b(getEncoded(false));
     }
 
     public byte[] getParentHash() {
@@ -111,16 +125,24 @@ public class Beacon {
         return mainChainRef;
     }
 
-    public byte[] getStateHash() {
-        return stateHash;
+    public byte[] getStateRoot() {
+        return stateRoot;
     }
 
-    public long getSlotNumber() {
-        return slotNumber;
+    public long getSlot() {
+        return slot;
     }
 
     public List<AttestationRecord> getAttestations() {
         return attestations;
+    }
+
+    public Sign.Signature getProposerSignature() {
+        return proposerSignature;
+    }
+
+    public void setProposerSignature(Sign.Signature proposerSignature) {
+        this.proposerSignature = proposerSignature;
     }
 
     public boolean isParentOf(Beacon other) {
@@ -131,8 +153,8 @@ public class Beacon {
         return FastByteComparisons.equal(this.parentHash, new byte[32]);
     }
 
-    public void setStateHash(byte[] stateHash) {
-        this.stateHash = stateHash;
+    public void setStateRoot(byte[] stateRoot) {
+        this.stateRoot = stateRoot;
     }
 
     public void setAttestations(List<AttestationRecord> attestations) {
@@ -149,7 +171,7 @@ public class Beacon {
 
     @Override
     public String toString() {
-        return "#" + getSlotNumber() + " (" + Hex.toHexString(getHash()).substring(0,6) + " <~ "
+        return "#" + getSlot() + " (" + Hex.toHexString(getHash()).substring(0,6) + " <~ "
                 + Hex.toHexString(getParentHash()).substring(0,6) + "; mainChainRef: " +
                 Hex.toHexString(mainChainRef).substring(0,6) + ")";
     }
@@ -161,7 +183,7 @@ public class Beacon {
     public static final Serializer<Beacon, byte[]> Serializer = new Serializer<Beacon, byte[]>() {
         @Override
         public byte[] serialize(Beacon block) {
-            return block == null ? null : block.getEncoded();
+            return block == null ? null : block.getEncoded(true);
         }
 
         @Override
@@ -175,7 +197,7 @@ public class Beacon {
      * But it's handy to use a stub for it.
      */
     public static final Beacon GENESIS = new Beacon(new byte[32], new byte[32], new byte[32],
-            new byte[32], 0L, Collections.emptyList()) {
+            new byte[32], 0L, Collections.emptyList(), new Sign.Signature()) {
         @Override
         public byte[] getHash() {
             return new byte[32];
