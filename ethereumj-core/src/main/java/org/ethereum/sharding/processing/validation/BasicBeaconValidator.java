@@ -47,7 +47,7 @@ public class BasicBeaconValidator implements BeaconValidator {
 
         rules = new ArrayList<>();
         rules.add((block, st) -> st.exist(block.getHash()) ? Exist : Success);
-        rules.add((block, st) -> block.isParentEmpty() || st.exist(block.getParentHash()) ? Success : NoParent);
+        rules.add((block, st) -> st.exist(block.getParentHash()) ? Success : NoParent);
     }
 
     @Override

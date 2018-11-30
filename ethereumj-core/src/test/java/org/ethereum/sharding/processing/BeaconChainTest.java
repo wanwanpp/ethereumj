@@ -57,7 +57,7 @@ public class BeaconChainTest {
 
         beaconChain.init();
         Beacon head = beaconChain.getCanonicalHead();
-        assertEquals(Beacon.GENESIS, head);
+        assertEquals(Beacon.genesis(), head);
         assertEquals(BigInteger.ZERO, helper.store.getCanonicalHeadScore());
     }
 
@@ -202,7 +202,7 @@ public class BeaconChainTest {
             // save score
             mainChainRef[0] = (byte) score;
 
-            BeaconState parentState = pullParentState(parent);
+            BeaconState parentState = repository.get(parent.getStateRoot());
 
             Beacon newBlock = new Beacon(parent.getHash(),
                     randaoReveal, mainChainRef, null, parent.getSlot() + 1, new ArrayList<>());
@@ -210,13 +210,6 @@ public class BeaconChainTest {
             newBlock.setStateRoot(newState.getHash());
 
             return newBlock;
-        }
-
-        BeaconState pullParentState(Beacon parent) {
-            BeaconState state = repository.get(parent.getStateRoot());
-            if (state == null)
-                state = beaconChain.initialState();
-            return state;
         }
 
         void checkCanonical(Beacon... chain) {

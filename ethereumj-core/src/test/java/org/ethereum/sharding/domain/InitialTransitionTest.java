@@ -57,7 +57,7 @@ public class InitialTransitionTest {
         ValidatorRepository validatorRepository = new PredefinedValidatorRepository(v1, v2, v3, v4);
 
         InitialTransition transition = new InitialTransition(validatorRepository);
-        BeaconState newState = transition.applyBlock(Beacon.GENESIS, stateRepository.getEmpty());
+        BeaconState newState = transition.applyBlock(Beacon.genesis(), stateRepository.getEmpty());
 
         checkValidatorSet(newState.getValidatorSet(), v1, v2, v3, v4);
 

@@ -81,12 +81,11 @@ public class BeaconChainImpl implements BeaconChain {
 
     @Override
     public void init() {
-        if (store.getCanonicalHead() == null) {
-            canonicalHead = initialChainHead();
-        } else {
-            canonicalHead = new ScoredChainHead(store.getCanonicalHead(), store.getCanonicalHeadScore(),
-                    repository.get(store.getCanonicalHead().getStateRoot()));
-        }
+        if (store.getCanonicalHead() == null)
+            initializeChain();
+
+        canonicalHead = new ScoredChainHead(store.getCanonicalHead(), store.getCanonicalHeadScore(),
+                repository.get(store.getCanonicalHead().getStateRoot()));
 
         publish(onBeaconChainLoaded(canonicalHead.block, canonicalHead.state));
         publish(onBeaconChainSynced(canonicalHead.block, canonicalHead.state));
@@ -94,12 +93,20 @@ public class BeaconChainImpl implements BeaconChain {
         logger.info("Chain loaded with head: {}", canonicalHead.block);
     }
 
-    ScoredChainHead initialChainHead() {
-        return new ScoredChainHead(Beacon.GENESIS, BigInteger.ZERO, initialState());
-    }
+    /**
+     * Stores genesis block and initial state
+     */
+    void initializeChain() {
+        // genesis is just an empty block with state root equal to initial state hash
+        Beacon genesis = Beacon.genesis();
+        BeaconState state = initialStateTransition.applyBlock(genesis, repository.getEmpty());
+        genesis.setStateRoot(state.getHash());
 
-    BeaconState initialState() {
-        return initialStateTransition.applyBlock(Beacon.GENESIS, repository.getEmpty());
+        repository.insert(state);
+        repository.commit();
+        store.save(genesis, BigInteger.ZERO, true);
+
+        beaconDbFlusher.flushSync();
     }
 
     @Override
@@ -162,9 +169,6 @@ public class BeaconChainImpl implements BeaconChain {
     }
 
     private Beacon pullParent(Beacon block) {
-        if (block.isParentEmpty())
-            return Beacon.GENESIS;
-
         if (canonicalHead.block.isParentOf(block))
             return canonicalHead.block;
 
@@ -172,9 +176,6 @@ public class BeaconChainImpl implements BeaconChain {
     }
 
     private BeaconState pullState(Beacon block) {
-        if (block.isGenesis())
-            return initialState();
-
         if (canonicalHead.block.equals(block))
             return canonicalHead.state;
 

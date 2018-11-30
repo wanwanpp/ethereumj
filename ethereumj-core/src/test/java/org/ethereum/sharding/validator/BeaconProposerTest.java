@@ -52,7 +52,7 @@ public class BeaconProposerTest {
         Helper helper = Helper.newInstance();
         BeaconProposer proposer = helper.proposer;
 
-        Beacon newBlock = Beacon.GENESIS;
+        Beacon newBlock = Beacon.genesis();
         helper.insertBlock(newBlock);
         byte[] reveal = helper.randao.revealNext();
 

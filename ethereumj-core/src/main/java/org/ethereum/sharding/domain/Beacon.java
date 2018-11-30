@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.ethereum.crypto.HashUtil.blake2b;
+import static org.ethereum.sharding.util.HashUtils.ZERO_HASH32;
 import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 import static org.ethereum.util.ByteUtil.isSingleZero;
 
@@ -106,7 +107,11 @@ public class Beacon {
     }
 
     public byte[] getHash() {
-        return blake2b(getEncoded(true));
+        if (this.isGenesis()) {
+            return ZERO_HASH32;
+        } else {
+            return blake2b(getEncoded(true));
+        }
     }
 
     public byte[] getHashWithoutSignature() {
@@ -149,10 +154,6 @@ public class Beacon {
         return FastByteComparisons.equal(this.getHash(), other.getParentHash());
     }
 
-    public boolean isParentEmpty() {
-        return FastByteComparisons.equal(this.parentHash, new byte[32]);
-    }
-
     public void setStateRoot(byte[] stateRoot) {
         this.stateRoot = stateRoot;
     }
@@ -164,20 +165,33 @@ public class Beacon {
     @Override
     public boolean equals(Object other) {
         if (this == other) return true;
-        if (!(other instanceof Beacon)) return false;
+        if ((other == null) || getClass() != other.getClass()) return false;
 
         return FastByteComparisons.equal(this.getHash(), ((Beacon) other).getHash());
     }
 
     @Override
     public String toString() {
-        return "#" + getSlot() + " (" + Hex.toHexString(getHash()).substring(0,6) + " <~ "
-                + Hex.toHexString(getParentHash()).substring(0,6) + "; mainChainRef: " +
-                Hex.toHexString(mainChainRef).substring(0,6) + ")";
+        if (this.isGenesis()) {
+            return "#0 (Genesis)";
+        } else {
+            return "#" + getSlot() + " (" + Hex.toHexString(getHash()).substring(0, 6) + " <~ "
+                    + Hex.toHexString(getParentHash()).substring(0, 6) + "; mainChainRef: " +
+                    Hex.toHexString(mainChainRef).substring(0, 6) + ")";
+        }
     }
 
     public boolean isGenesis() {
-        return this == GENESIS;
+        return slot == 0L;
+    }
+
+    /**
+     * Genesis is an empty block with 0 slot number and hash full of zeros.
+     * Actually, there is no genesis block in beacon chain. However, it's handy to have it here and there.
+     */
+    public static Beacon genesis() {
+        return new Beacon(ZERO_HASH32, ZERO_HASH32, ZERO_HASH32, ZERO_HASH32,
+                0L, Collections.emptyList(), new Sign.Signature());
     }
 
     public static final Serializer<Beacon, byte[]> Serializer = new Serializer<Beacon, byte[]>() {
@@ -189,23 +203,6 @@ public class Beacon {
         @Override
         public Beacon deserialize(byte[] stream) {
             return stream == null ? null : new Beacon(stream);
-        }
-    };
-
-    /**
-     * There is no Genesis block in Beacon chain.
-     * But it's handy to use a stub for it.
-     */
-    public static final Beacon GENESIS = new Beacon(new byte[32], new byte[32], new byte[32],
-            new byte[32], 0L, Collections.emptyList(), new Sign.Signature()) {
-        @Override
-        public byte[] getHash() {
-            return new byte[32];
-        }
-
-        @Override
-        public String toString() {
-            return "#0 (Genesis)";
         }
     };
 }

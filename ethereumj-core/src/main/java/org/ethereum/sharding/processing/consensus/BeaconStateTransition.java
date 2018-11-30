@@ -57,7 +57,7 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
         BeaconState ret = to;
 
         // update recent block hashes
-        if (!block.isParentEmpty() && store != null) {
+        if (store != null) {
             Beacon parent = store.getByHash(block.getParentHash());
             assert parent != null;
             ret = ret.appendRecentBlockHashes(block, parent.getSlot());

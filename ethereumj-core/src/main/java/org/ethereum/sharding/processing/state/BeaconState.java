@@ -267,6 +267,10 @@ public class BeaconState {
     }
 
     public BeaconState appendRecentBlockHashes(Beacon block, long parentSlot) {
+        // no updates if parent is genesis
+        if (parentSlot == 0)
+            return this;
+
         List<byte[]> recentBlockHashes = new ArrayList<>(this.recentBlockHashes);
         for (long i = parentSlot; i < block.getSlot(); i++) {
             recentBlockHashes.add(block.getHash());
