@@ -89,6 +89,10 @@ public class Validator {
         return new Validator(pubKey, withdrawalShard, withdrawalAddress, randao, index);
     }
 
+    public Validator withRandaoReveal(byte[] randao) {
+        return new Validator(pubKey, withdrawalShard, withdrawalAddress, randao, index);
+    }
+
     public static final Serializer<Validator, byte[]> Serializer = new Serializer<Validator, byte[]>() {
         @Override
         public byte[] serialize(Validator validator) {

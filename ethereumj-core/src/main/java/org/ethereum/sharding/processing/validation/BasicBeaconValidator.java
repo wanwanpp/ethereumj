@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.ethereum.sharding.processing.validation.ValidationResult.Exist;
@@ -44,10 +45,10 @@ public class BasicBeaconValidator implements BeaconValidator {
 
     public BasicBeaconValidator(BeaconStore store) {
         this.store = store;
-
-        rules = new ArrayList<>();
-        rules.add((block, st) -> st.exist(block.getHash()) ? Exist : Success);
-        rules.add((block, st) -> st.exist(block.getParentHash()) ? Success : NoParent);
+        this.rules = Arrays.asList(
+                (block, st) -> st.exist(block.getHash()) ? Exist : Success,
+                (block, st) -> st.exist(block.getParentHash()) ? Success : NoParent
+        );
     }
 
     @Override

@@ -41,8 +41,10 @@ public enum ProcessingResult {
                 return NoParent;
             case StateMismatch:
                 return ConsensusBreak;
-            case InvalidAttestations:
+            case InvalidProposerIndex:
+            case InvalidRandaoReveal:
             case InvalidProposerSignature:
+            case InvalidAttestations:
                 return Invalid;
             default:
                 throw new RuntimeException("Can't convert " + res + " to processing result");

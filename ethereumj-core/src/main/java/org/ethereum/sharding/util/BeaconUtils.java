@@ -165,6 +165,9 @@ public class BeaconUtils {
      * @return validator idx or -1 if there were no validators assigned to the slot
      */
     public static int getProposerIndex(Committee[][] committees, long slot) {
+        if (committees.length <= (int) slot % CYCLE_LENGTH)
+            return -1;
+
         Committee[] slotCommittee = committees[(int) slot % CYCLE_LENGTH];
         if (slotCommittee[0].getValidators().length > 0) {
             int arrayIdx = (int) slot % slotCommittee[0].getValidators().length;

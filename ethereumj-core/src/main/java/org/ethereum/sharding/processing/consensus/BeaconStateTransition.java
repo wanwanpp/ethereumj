@@ -18,6 +18,7 @@
 package org.ethereum.sharding.processing.consensus;
 
 import org.ethereum.sharding.domain.Beacon;
+import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.BeaconState;
@@ -63,6 +64,14 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
             ret = ret.appendRecentBlockHashes(block, parent.getSlot());
         }
 
+        // update randao reveal
+        Validator proposer = to.getProposerForSlot(block.getSlot());
+        if (proposer != null) {
+            ret.getValidatorSet().put(proposer.getIndex(), proposer.withRandaoReveal(block.getRandaoReveal()));
+        }
+        ret = ret.updateRandaoMix(block.getRandaoReveal());
+
+        // add pending attestations
         ret = ret.addPendingAttestationsFromBlock(block);
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
 

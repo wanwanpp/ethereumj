@@ -18,10 +18,13 @@
 package org.ethereum.sharding.processing.state;
 
 import org.ethereum.sharding.domain.Beacon;
+import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.util.BeaconUtils;
+import org.ethereum.util.ByteUtil;
 import org.ethereum.util.FastByteComparisons;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -209,6 +212,12 @@ public class BeaconState {
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
+    public BeaconState withRandaoMix(byte[] randaoMix) {
+        return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
+                crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
+    }
+
     public BeaconState increaseLastStateRecalc(long addition) {
         return withLastStateRecalc(lastStateRecalculationSlot + addition);
     }
@@ -284,6 +293,18 @@ public class BeaconState {
             recentBlockHashes.add(this.recentBlockHashes.get(i));
         }
         return withRecentBlockHashes(recentBlockHashes);
+    }
+
+    public BeaconState updateRandaoMix(byte[] nextRandaoImage) {
+        return withRandaoMix(ByteUtil.xor(randaoMix, nextRandaoImage));
+    }
+
+    @Nullable
+    public Validator getProposerForSlot(long slot) {
+        int proposerIdx = BeaconUtils.getProposerIndex(committees, slot);
+        if (proposerIdx < 0)
+            return null;
+        return validatorSet.get(proposerIdx);
     }
 
     public byte[] getHash() {

@@ -19,16 +19,13 @@ package org.ethereum.sharding.processing.validation;
 
 import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.domain.Beacon;
-import org.ethereum.sharding.domain.Validator;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.sharding.processing.state.AttestationData;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
-import org.ethereum.sharding.processing.state.ProposalSignedData;
 import org.ethereum.sharding.processing.state.StateRepository;
-import org.ethereum.sharding.util.BeaconUtils;
 import org.ethereum.sharding.util.Bitfield;
 import org.ethereum.sharding.util.HashUtils;
 import org.ethereum.util.ByteUtil;
@@ -39,10 +36,8 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.ethereum.sharding.processing.consensus.BeaconConstants.BEACON_CHAIN_SHARD_ID;
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.MAX_ATTESTATION_COUNT;
 import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidAttestations;
-import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidProposerSignature;
 import static org.ethereum.sharding.processing.validation.ValidationResult.Success;
 import static org.ethereum.sharding.util.BeaconUtils.scanCommittees;
 import static org.ethereum.util.FastByteComparisons.equal;
@@ -62,7 +57,6 @@ public class AttestationsValidator implements BeaconValidator {
     public AttestationsValidator(BeaconStore store, StateRepository repository, Sign sign) {
         this(store, repository, sign, new ArrayList<>());
         rules.add(MaxAttestationsRule);
-        rules.add(ProposerAttestationRule);
         rules.add(CommonAttestationRule);
     }
 
@@ -79,35 +73,6 @@ public class AttestationsValidator implements BeaconValidator {
      */
     static final ValidationRule<Data> MaxAttestationsRule = (block, data) ->
         block.getAttestations().size() > MAX_ATTESTATION_COUNT ? InvalidAttestations : Success;
-
-    /**
-     * Basic proposer attestation validation:
-     *
-     * Attestation from the proposer of the block should be included
-     * along with the block in the network message object
-     */
-    static final ValidationRule<Data> ProposerAttestationRule = (block, data) -> {
-        if (block.isGenesis()) {
-            return Success;
-        }
-
-        int proposerIdx = BeaconUtils.getProposerIndex(data.state.getCommittees(), block.getSlot());
-        if (proposerIdx < 0) {
-            return InvalidProposerSignature;
-        }
-        Validator proposer = data.state.getValidatorSet().get(proposerIdx);
-        assert proposer != null;
-
-        ProposalSignedData proposalData = new ProposalSignedData(block.getSlot(), BEACON_CHAIN_SHARD_ID,
-                block.getHashWithoutSignature());
-
-        if (!data.sign.verify(block.getProposerSignature(), proposalData.getHash(),
-                ByteUtil.bytesToBigInteger(proposer.getPubKey()))) {
-            return InvalidProposerSignature;
-        }
-
-        return Success;
-    };
 
     static final ValidationRule<Data> CommonAttestationRule = (block, data) -> {
         for (AttestationRecord attestation : block.getAttestations()) {

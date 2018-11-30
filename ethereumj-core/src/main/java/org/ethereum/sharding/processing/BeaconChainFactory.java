@@ -32,6 +32,7 @@ import org.ethereum.sharding.processing.validation.AttestationsValidator;
 import org.ethereum.sharding.processing.validation.BeaconValidator;
 import org.ethereum.sharding.processing.validation.BasicBeaconValidator;
 import org.ethereum.sharding.processing.validation.MultiBeaconValidator;
+import org.ethereum.sharding.processing.validation.ProposerValidator;
 import org.ethereum.sharding.processing.validation.StateValidator;
 import org.ethereum.sharding.pubsub.Publisher;
 import org.ethereum.sharding.registration.ValidatorRepository;
@@ -58,6 +59,7 @@ public class BeaconChainFactory {
                                      StateTransition<BeaconState> stateTransitionFunction, Sign sign) {
         List<BeaconValidator> beaconValidators = new ArrayList<BeaconValidator>() {{
             add(new BasicBeaconValidator(store));
+            add(new ProposerValidator(store, repository, sign));
             add(new AttestationsValidator(store, repository, sign));
         }};
         BeaconValidator multiValidator = new MultiBeaconValidator(beaconValidators);

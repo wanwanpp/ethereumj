@@ -33,10 +33,9 @@ public interface AttestationPool {
     /**
      * List of attestations which should be included in new proposal
      * @param currentSlot       Slot for proposal
-     * @param lastJustified     Last justified chain
      * @return  list of attestations for slots before current, merged by slot
      */
-    List<AttestationRecord> getAttestations(Long currentSlot, Beacon lastJustified);
+    List<AttestationRecord> getAttestations(Long currentSlot);
 
     /**
      * Adds new attestation to the pool

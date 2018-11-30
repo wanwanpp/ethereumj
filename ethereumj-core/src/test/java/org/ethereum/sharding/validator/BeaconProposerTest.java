@@ -115,7 +115,7 @@ public class BeaconProposerTest {
                     ValidatorConfig.DISABLED, Mockito.mock(AttestationPool.class)) {
 
                 @Override
-                byte[] randaoReveal(BeaconState state, byte[] pubKey) {
+                byte[] randaoReveal(BeaconState state, byte[] pubKey, int randaoSkips) {
                     return randao.revealNext();
                 }
             };

@@ -71,7 +71,7 @@ public class AttestationPoolImpl implements AttestationPool {
     }
 
     @Override
-    public synchronized List<AttestationRecord> getAttestations(Long currentSlot, Beacon lastJustified) {
+    public synchronized List<AttestationRecord> getAttestations(Long currentSlot) {
         List<AttestationRecord> res = new ArrayList<>();
         attestations.entrySet().forEach(e -> {
             AttestationData data = e.getKey();

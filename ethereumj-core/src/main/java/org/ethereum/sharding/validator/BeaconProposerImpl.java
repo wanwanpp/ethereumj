@@ -69,7 +69,7 @@ public class BeaconProposerImpl implements BeaconProposer {
         this.attestationPool = attestationPool;
     }
 
-    byte[] randaoReveal(BeaconState state, byte[] pubKey) {
+    byte[] randaoReveal(BeaconState state, byte[] pubKey, int randaoSkips) {
         if (!config.isEnabled()) {
             logger.error("Failed to reveal Randao: validator is disabled in the config");
             return new byte[] {};
@@ -81,14 +81,18 @@ public class BeaconProposerImpl implements BeaconProposer {
             return new byte[] {};
         }
 
-        return randao.reveal(validator.getRandao());
+        byte[] preImage = randao.reveal(validator.getRandao());
+        for (int i = 0; i < randaoSkips; i++) {
+            preImage = randao.reveal(preImage);
+        }
+        return preImage;
     }
 
     @Override
     public Beacon createNewBlock(Input in, byte[] pubKey) {
-        Beacon lastJustified = store.getCanonicalByNumber(in.state.getJustificationSource());
-        Beacon block = new Beacon(in.parent.getHash(), randaoReveal(in.state, pubKey), in.mainChainRef,
-                HashUtil.EMPTY_DATA_HASH, in.slotNumber, attestationPool.getAttestations(in.slotNumber, lastJustified));
+        int randaoSkips = in.parent.isGenesis() ? 1 : (int) (in.slotNumber - in.parent.getSlot());
+        Beacon block = new Beacon(in.parent.getHash(), randaoReveal(in.state, pubKey, randaoSkips), in.mainChainRef,
+                HashUtil.EMPTY_DATA_HASH, in.slotNumber, attestationPool.getAttestations(in.slotNumber));
 
         // sign off on proposed block
         ProposalSignedData proposalData = new ProposalSignedData(block.getSlot(), BEACON_CHAIN_SHARD_ID,

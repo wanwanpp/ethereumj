@@ -27,6 +27,8 @@ public enum ValidationResult {
     Exist,
     NoParent,
     StateMismatch,
+    InvalidProposerIndex,
+    InvalidRandaoReveal,
     InvalidAttestations,
     InvalidProposerSignature,
     Success;
