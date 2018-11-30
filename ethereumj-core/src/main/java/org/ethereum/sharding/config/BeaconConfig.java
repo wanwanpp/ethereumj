@@ -222,7 +222,7 @@ public class BeaconConfig {
     @Bean
     public BeaconProposer beaconProposer() {
         return new BeaconProposerImpl(randao(), beaconStateRepository(), beaconStore(),
-                BeaconChainFactory.stateTransition(publisher()),
+                BeaconChainFactory.stateTransition(publisher(), beaconStore()),
                 validatorConfig(), attestationPool());
     }
 

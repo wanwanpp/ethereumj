@@ -76,10 +76,10 @@ public class BeaconChainFactory {
                 .withMainChainRef(bestBlock.getHash());
 
         return create(beaconDbFlusher, store, repository, genesisStateTransition,
-                stateTransition(publisher), sign);
+                stateTransition(publisher, store), sign);
     }
 
-    public static StateTransition<BeaconState> stateTransition(Publisher publisher) {
+    public static StateTransition<BeaconState> stateTransition(Publisher publisher, BeaconStore store) {
         if (stateTransition == null)
             stateTransition = new BeaconStateTransition(publisher);
         return stateTransition;

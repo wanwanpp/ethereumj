@@ -18,6 +18,7 @@
 package org.ethereum.sharding.processing.consensus;
 
 import org.ethereum.sharding.domain.Beacon;
+import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.db.ValidatorSet;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
@@ -40,6 +41,7 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
     private static final Logger logger = LoggerFactory.getLogger("beacon");
 
     Publisher publisher;
+    BeaconStore store;
     CommitteeFactory committeeFactory = new ShufflingCommitteeFactory();
 
     public BeaconStateTransition(Publisher publisher) {
@@ -52,6 +54,10 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
     @Override
     public BeaconState applyBlock(Beacon block, BeaconState to) {
         BeaconState ret = to;
+        Beacon parent = store.getByHash(block.getParentHash());
+
+        // update recent block hashes
+        ret = ret.appendRecentBlockHashes(block, parent.getSlotNumber());
 
         ret = ret.addPendingAttestationsFromBlock(block);
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
@@ -91,6 +97,9 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
 
             // remove attestations older than last_state_recalc
             ret = ret.removeOutdatedAttestations();
+
+            // trim recent block hashes
+            ret = ret.trimRecentBlockHashes(CYCLE_LENGTH);
         }
 
         return ret;

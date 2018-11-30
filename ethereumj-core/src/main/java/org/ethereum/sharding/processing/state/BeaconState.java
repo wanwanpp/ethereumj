@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.max;
 import static org.ethereum.util.ByteUtil.ZERO_BYTE_ARRAY;
 
 /**
@@ -202,6 +203,12 @@ public class BeaconState {
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
+    public BeaconState withRecentBlockHashes(List<byte[]> recentBlockHashes) {
+        return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
+                crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
+    }
+
     public BeaconState increaseLastStateRecalc(long addition) {
         return withLastStateRecalc(lastStateRecalculationSlot + addition);
     }
@@ -257,6 +264,22 @@ public class BeaconState {
             }
         }
         return withPendingAttestations(uptodateAttestations);
+    }
+
+    public BeaconState appendRecentBlockHashes(Beacon block, long parentSlot) {
+        List<byte[]> recentBlockHashes = new ArrayList<>(this.recentBlockHashes);
+        for (long i = parentSlot; i < block.getSlotNumber(); i++) {
+            recentBlockHashes.add(block.getHash());
+        }
+        return withRecentBlockHashes(recentBlockHashes);
+    }
+
+    public BeaconState trimRecentBlockHashes(int startIdx) {
+        List<byte[]> recentBlockHashes = new ArrayList<>();
+        for (int i = startIdx; i < this.recentBlockHashes.size(); i++) {
+            recentBlockHashes.add(this.recentBlockHashes.get(i));
+        }
+        return withRecentBlockHashes(recentBlockHashes);
     }
 
     public byte[] getHash() {
