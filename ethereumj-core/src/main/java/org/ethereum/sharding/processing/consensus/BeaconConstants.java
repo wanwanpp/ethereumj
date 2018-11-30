@@ -60,4 +60,14 @@ public interface BeaconConstants {
      * Slot duration for the beacon chain
      */
     long SLOT_DURATION = 8 * 1000; // 8 seconds
+
+    /**
+     * Max number of attestations included into a block
+     */
+    int MAX_ATTESTATION_COUNT = 128;
+
+    /**
+     * Minimal delay for the attestation to be included into a block
+     */
+    long MIN_ATTESTATION_INCLUSION_DELAY = 4; // 4 slots
 }

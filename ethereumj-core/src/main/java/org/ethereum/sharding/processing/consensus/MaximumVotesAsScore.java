@@ -22,6 +22,7 @@ import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.state.AttestationRecord;
 import org.ethereum.sharding.processing.state.BeaconState;
+import org.ethereum.sharding.processing.state.ProcessedAttestation;
 import org.ethereum.sharding.util.Bitfield;
 
 import java.math.BigInteger;
@@ -48,7 +49,7 @@ public class MaximumVotesAsScore implements ScoreFunction {
     @Override
     public BigInteger apply(Beacon block, BeaconState state) {
         // Assumes that data from block is already in active state
-        List<AttestationRecord> pendingAttestations = state.getPendingAttestations();
+        List<ProcessedAttestation> pendingAttestations = state.getPendingAttestations();
         AttestationRecord first = block.getAttestations().get(0);
         boolean found = false;
         for (int i = pendingAttestations.size() - 1; i >= 0; --i) {
@@ -60,16 +61,16 @@ public class MaximumVotesAsScore implements ScoreFunction {
             throw new RuntimeException("State should already include scored block");
         }
 
-        long lastJustified = state.getLastJustifiedSlot();
+        long lastJustified = state.getJustificationSource();
 
         // Calculate per block votes
-        Map<ByteArrayWrapper, List<AttestationRecord>> perBlockAttestations = new HashMap<>();
+        Map<ByteArrayWrapper, List<ProcessedAttestation>> perBlockAttestations = new HashMap<>();
         pendingAttestations.forEach(at -> {
-            ByteArrayWrapper blockHash = new ByteArrayWrapper(at.getShardBlockHash());
+            ByteArrayWrapper blockHash = new ByteArrayWrapper(at.getData().getBlockHash());
             if (perBlockAttestations.containsKey(blockHash)) {
                 perBlockAttestations.get(blockHash).add(at);
             } else {
-                perBlockAttestations.put(blockHash, new ArrayList<AttestationRecord>(){{add(at);}});
+                perBlockAttestations.put(blockHash, new ArrayList<ProcessedAttestation>(){{add(at);}});
             }
         });
 
@@ -77,7 +78,7 @@ public class MaximumVotesAsScore implements ScoreFunction {
         Beacon current = block;
         while (current.getSlotNumber() != lastJustified) {
             int currentVotes = 0;
-            List<AttestationRecord> blockAttestations = perBlockAttestations.get(new ByteArrayWrapper(current.getHash()));
+            List<ProcessedAttestation> blockAttestations = perBlockAttestations.get(new ByteArrayWrapper(current.getHash()));
             if (blockAttestations != null && !blockAttestations.isEmpty()) {
                 currentVotes = Bitfield.orBitfield(
                         blockAttestations.stream()

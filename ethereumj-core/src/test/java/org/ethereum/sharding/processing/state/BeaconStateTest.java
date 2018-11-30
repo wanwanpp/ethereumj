@@ -1,6 +1,5 @@
 package org.ethereum.sharding.processing.state;
 
-import org.ethereum.config.SystemProperties;
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.datasource.inmem.HashMapDB;
 import org.ethereum.sharding.processing.consensus.BeaconConstants;
@@ -103,8 +102,8 @@ public class BeaconStateTest {
             assertArrayEquals(e.getHash(), a.getHash());
         }
 
-        assertEquals(expected.getJustifiedStreak(), actual.getJustifiedStreak());
-        assertEquals(expected.getLastJustifiedSlot(), actual.getLastJustifiedSlot());
+        assertEquals(expected.getPrevCycleJustificationSource(), actual.getPrevCycleJustificationSource());
+        assertEquals(expected.getJustificationSource(), actual.getJustificationSource());
         assertEquals(expected.getLastFinalizedSlot(), actual.getLastFinalizedSlot());
 
         assertArrayEquals(expected.getValidatorSet().getHash(),

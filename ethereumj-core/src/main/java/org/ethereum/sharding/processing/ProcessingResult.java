@@ -42,6 +42,7 @@ public enum ProcessingResult {
             case StateMismatch:
                 return ConsensusBreak;
             case InvalidAttestations:
+            case InvalidProposerSignature:
                 return Invalid;
             default:
                 throw new RuntimeException("Can't convert " + res + " to processing result");

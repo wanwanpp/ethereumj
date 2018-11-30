@@ -17,7 +17,9 @@
  */
 package org.ethereum.sharding.processing.state;
 
+import org.ethereum.sharding.domain.Beacon;
 import org.ethereum.sharding.processing.db.ValidatorSet;
+import org.ethereum.sharding.util.BeaconUtils;
 import org.ethereum.util.FastByteComparisons;
 
 import java.util.ArrayList;
@@ -46,10 +48,10 @@ public class BeaconState {
     /* Hash chain of validator set changes (for light clients to easily track deltas) */
     private final byte[] validatorSetDeltaHashChain = ZERO_BYTE_ARRAY;
 
-    /* Last justified slot */
-    private final long lastJustifiedSlot;
-    /* Number of consecutive justified slots */
-    private final long justifiedStreak;
+    /* Justification source */
+    private final long justificationSource;
+    /* Justification source of previous cycle */
+    private final long prevCycleJustificationSource;
     /* Last finalized slot */
     private final long lastFinalizedSlot;
 
@@ -77,7 +79,7 @@ public class BeaconState {
     private final long forkSlotNumber = 0;
 
     /* Attestations not yet processed */
-    private final List<AttestationRecord> pendingAttestations;
+    private final List<ProcessedAttestation> pendingAttestations;
     /* Recent beacon block hashes needed to process attestations, older to newer */
     private final List<byte[]> recentBlockHashes;
 
@@ -87,17 +89,17 @@ public class BeaconState {
     private final byte[] randaoMix;
 
     public BeaconState(long lastStateRecalculationSlot, ValidatorSet validatorSet, Committee[][] committees,
-                       byte[] nextShufflingSeed, long validatorSetChangeSlot, long lastJustifiedSlot,
-                       long justifiedStreak, long lastFinalizedSlot, Crosslink[] crosslinks,
-                       List<AttestationRecord> pendingAttestations, List<byte[]> recentBlockHashes, byte[] randaoMix,
+                       byte[] nextShufflingSeed, long validatorSetChangeSlot, long justificationSource,
+                       long prevCycleJustificationSource, long lastFinalizedSlot, Crosslink[] crosslinks,
+                       List<ProcessedAttestation> pendingAttestations, List<byte[]> recentBlockHashes, byte[] randaoMix,
                        long genesisTime) {
         this.lastStateRecalculationSlot = lastStateRecalculationSlot;
         this.validatorSet = validatorSet;
         this.committees = committees;
         this.nextShufflingSeed = nextShufflingSeed;
         this.validatorSetChangeSlot = validatorSetChangeSlot;
-        this.lastJustifiedSlot = lastJustifiedSlot;
-        this.justifiedStreak = justifiedStreak;
+        this.justificationSource = justificationSource;
+        this.prevCycleJustificationSource = prevCycleJustificationSource;
         this.lastFinalizedSlot = lastFinalizedSlot;
         this.crosslinks = crosslinks;
         this.pendingAttestations = pendingAttestations;
@@ -118,12 +120,12 @@ public class BeaconState {
         return validatorSetChangeSlot;
     }
 
-    public long getLastJustifiedSlot() {
-        return lastJustifiedSlot;
+    public long getJustificationSource() {
+        return justificationSource;
     }
 
-    public long getJustifiedStreak() {
-        return justifiedStreak;
+    public long getPrevCycleJustificationSource() {
+        return prevCycleJustificationSource;
     }
 
     public long getLastFinalizedSlot() {
@@ -134,7 +136,7 @@ public class BeaconState {
         return crosslinks;
     }
 
-    public List<AttestationRecord> getPendingAttestations() {
+    public List<ProcessedAttestation> getPendingAttestations() {
         return pendingAttestations;
     }
 
@@ -160,49 +162,43 @@ public class BeaconState {
 
     public BeaconState withGenesisTime(long genesisTime) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
     public BeaconState withValidatorSet(ValidatorSet validatorSet) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
     public BeaconState withCommittees(Committee[][] committees) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
     public BeaconState withValidatorSetChangeSlot(long validatorSetChangeSlot) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
     public BeaconState withLastStateRecalc(long lastStateRecalc) {
         return new BeaconState(lastStateRecalc, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
     public BeaconState withCrosslinks(Crosslink[] crosslinks) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
-    public BeaconState withPendingAttestations(List<AttestationRecord> pendingAttestations) {
+    public BeaconState withPendingAttestations(List<ProcessedAttestation> pendingAttestations) {
         return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
-                crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
-    }
-
-    public BeaconState withFinality(long lastJustifiedSlot, long justifiedStreak, long lastFinalizedSlot) {
-        return new BeaconState(lastStateRecalculationSlot, validatorSet, committees, nextShufflingSeed,
-                validatorSetChangeSlot, lastJustifiedSlot, justifiedStreak, lastFinalizedSlot,
+                validatorSetChangeSlot, justificationSource, prevCycleJustificationSource, lastFinalizedSlot,
                 crosslinks, pendingAttestations, recentBlockHashes, randaoMix, genesisTime);
     }
 
@@ -221,24 +217,42 @@ public class BeaconState {
         return endSlot[endSlot.length - 1].getShardId();
     }
 
+    public long getJustificationSourceForSlot(long slot) {
+        return slot >= lastStateRecalculationSlot ? justificationSource : prevCycleJustificationSource;
+    }
+
+    public byte[] getRecentBlockHashForSlot(long slot, long currentBlockSlot) {
+        assert slot < currentBlockSlot;
+
+        long baseSlot = currentBlockSlot - recentBlockHashes.size();
+        int idx = (int) (slot - baseSlot);
+        assert idx >= 0;
+        return recentBlockHashes.get(idx);
+    }
+
+    public byte[] getCycleBoundaryHash(long currentBlockSlot) {
+        long cycleSlot = BeaconUtils.cycleStartSlot(currentBlockSlot);
+        return getRecentBlockHashForSlot(cycleSlot, currentBlockSlot);
+    }
+
     /**
      * Adds new attestations to the end of the list
      * Produces new instance keeping immutability
-     * @param pendingAttestations   Attestations to add
+     *
+     * @param block block with attestations to add
      * @return updated ActiveState
      */
-    public BeaconState addPendingAttestations(List<AttestationRecord> pendingAttestations) {
-        List<AttestationRecord> mergedAttestations = new ArrayList<>();
-        mergedAttestations.addAll(this.getPendingAttestations());
-        mergedAttestations.addAll(pendingAttestations);
-
-        return withPendingAttestations(mergedAttestations);
+    public BeaconState addPendingAttestationsFromBlock(Beacon block) {
+        List<ProcessedAttestation> updatedAttestations = new ArrayList<>(pendingAttestations);
+        block.getAttestations().forEach(record ->
+                updatedAttestations.add(new ProcessedAttestation(record, block.getSlotNumber())));
+        return withPendingAttestations(updatedAttestations);
     }
 
     public BeaconState removeOutdatedAttestations() {
-        List<AttestationRecord> uptodateAttestations = new ArrayList<>();
-        for (AttestationRecord record : pendingAttestations) {
-            if (record.getSlot() >= lastStateRecalculationSlot) {
+        List<ProcessedAttestation> uptodateAttestations = new ArrayList<>();
+        for (ProcessedAttestation record : pendingAttestations) {
+            if (record.getData().getSlot() >= lastStateRecalculationSlot) {
                 uptodateAttestations.add(record);
             }
         }
@@ -251,7 +265,7 @@ public class BeaconState {
 
     public FlattenedState flatten() {
         return new FlattenedState(validatorSet.getHash(), lastStateRecalculationSlot, committees,
-                lastJustifiedSlot, justifiedStreak, lastFinalizedSlot, crosslinks, nextShufflingSeed,
+                justificationSource, prevCycleJustificationSource, lastFinalizedSlot, crosslinks, nextShufflingSeed,
                 validatorSetChangeSlot, randaoMix, recentBlockHashes, pendingAttestations, genesisTime);
     }
 

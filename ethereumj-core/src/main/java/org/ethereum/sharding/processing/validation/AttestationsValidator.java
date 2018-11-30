@@ -19,15 +19,16 @@ package org.ethereum.sharding.processing.validation;
 
 import org.ethereum.sharding.crypto.Sign;
 import org.ethereum.sharding.domain.Beacon;
+import org.ethereum.sharding.processing.consensus.BeaconConstants;
 import org.ethereum.sharding.processing.db.BeaconStore;
 import org.ethereum.sharding.processing.state.AttestationRecord;
+import org.ethereum.sharding.processing.state.AttestationData;
 import org.ethereum.sharding.processing.state.BeaconState;
 import org.ethereum.sharding.processing.state.Committee;
 import org.ethereum.sharding.processing.state.StateRepository;
-import org.ethereum.sharding.util.BeaconUtils;
 import org.ethereum.sharding.util.Bitfield;
+import org.ethereum.sharding.util.HashUtils;
 import org.ethereum.util.ByteUtil;
-import org.ethereum.util.FastByteComparisons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +37,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.ethereum.sharding.processing.consensus.BeaconConstants.CYCLE_LENGTH;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.MAX_ATTESTATION_COUNT;
+import static org.ethereum.sharding.processing.consensus.BeaconConstants.MIN_ATTESTATION_INCLUSION_DELAY;
 import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidAttestations;
+import static org.ethereum.sharding.processing.validation.ValidationResult.InvalidProposerSignature;
 import static org.ethereum.sharding.processing.validation.ValidationResult.Success;
 import static org.ethereum.sharding.util.BeaconUtils.scanCommittees;
+import static org.ethereum.util.FastByteComparisons.equal;
 
 /**
  * Validates block attestations
@@ -54,6 +59,7 @@ public class AttestationsValidator implements BeaconValidator {
 
     public AttestationsValidator(BeaconStore store, StateRepository repository, Sign sign) {
         this(store, repository, sign, new ArrayList<>());
+        rules.add(MaxAttestationsRule);
         rules.add(ProposerAttestationRule);
         rules.add(CommonAttestationRule);
     }
@@ -65,6 +71,12 @@ public class AttestationsValidator implements BeaconValidator {
         this.sign = sign;
         this.rules = rules;
     }
+
+    /**
+     * Check against {@link BeaconConstants#MAX_ATTESTATION_COUNT}
+     */
+    static final ValidationRule<Data> MaxAttestationsRule = (block, data) ->
+        block.getAttestations().size() > MAX_ATTESTATION_COUNT ? InvalidAttestations : Success;
 
     /**
      * Basic proposer attestation validation:
@@ -82,70 +94,61 @@ public class AttestationsValidator implements BeaconValidator {
         int index = (int) data.parent.getSlotNumber() % committees.length;
 
         if (block.getAttestations().isEmpty()) {
-            return InvalidAttestations;
+            return InvalidProposerSignature;
         }
 
         AttestationRecord proposerAttestation = block.getAttestations().get(0);
 
-        if (proposerAttestation.getSlot() != data.parent.getSlotNumber()) {
-            return InvalidAttestations;
+        if (proposerAttestation.getData().getSlot() != data.parent.getSlotNumber()) {
+            return InvalidProposerSignature;
         }
-        if (!FastByteComparisons.equal(data.parent.getHash(), proposerAttestation.getShardBlockHash())) {
-            return InvalidAttestations;
+        if (!equal(data.parent.getHash(), proposerAttestation.getData().getShardBlockHash())) {
+            return InvalidProposerSignature;
         }
 
         if (!proposerAttestation.getAttesterBitfield().hasVoted(index)) {
-            return InvalidAttestations;
+            return InvalidProposerSignature;
         }
 
         return Success;
     };
 
     static final ValidationRule<Data> CommonAttestationRule = (block, data) -> {
-        List<AttestationRecord> attestationRecords = block.getAttestations();
-        List<byte[]> recentBlockHashes = data.state.getRecentBlockHashes();
+        for (AttestationRecord attestation : block.getAttestations()) {
+            AttestationData signedData = attestation.getData();
 
-        for (AttestationRecord attestation : attestationRecords) {
-            // Too early
-            if (attestation.getSlot() > data.parent.getSlotNumber()) {
+            // Is not acceptable in block slot
+            if (!signedData.isAcceptableIn(block.getSlotNumber())) {
                 return InvalidAttestations;
             }
 
-            // Too old
-            if (attestation.getSlot() < Math.max(data.parent.getSlotNumber() - CYCLE_LENGTH + 1, 0)) {
+            // Incorrect justification
+            if (signedData.getJustifiedSlot() != data.state.getJustificationSourceForSlot(signedData.getSlot())) {
                 return InvalidAttestations;
             }
 
-            // Incorrect justified
-            if (attestation.getJustifiedSlot() > data.state.getLastJustifiedSlot()) {
+            // Hash of the block with justified slot does not equal to justifiedBlockHash
+            byte[] justifiedBlockHash = data.state.getRecentBlockHashForSlot(
+                    signedData.getJustifiedSlot(), block.getSlotNumber());
+            if (!equal(signedData.getJustifiedBlockHash(), justifiedBlockHash)) {
                 return InvalidAttestations;
             }
 
-            Beacon justified = data.store.getByHash(attestation.getJustifiedBlockHash());
-            if (justified == null ||
-                    data.store.getCanonicalByNumber(justified.getSlotNumber()) != justified) {
+            // FIXME remove in Phase 1
+            if (!equal(signedData.getShardBlockHash(), HashUtils.ZERO_HASH32)) {
                 return InvalidAttestations;
             }
 
-            if (justified.getSlotNumber() != attestation.getJustifiedSlot()) {
+            // Incorrect shard block hash
+            byte[] shardBlockHash = data.state.getCrosslinks()[signedData.getShardId()].getHash();
+            if (!equal(signedData.getLastCrosslinkHash(), shardBlockHash) &&
+                    !equal(signedData.getShardBlockHash(), shardBlockHash)) {
                 return InvalidAttestations;
             }
 
-            // Given an attestation and the block they were included in,
-            // the list of hashes that were included in the signature
-            long fromSlot = attestation.getSlot() - CYCLE_LENGTH + 1;
-            long toSlot = attestation.getSlot() - attestation.getObliqueParentHashes().size();
-            long sBack = block.getSlotNumber() - CYCLE_LENGTH * 2;
-            List<byte[]> parentHashes = new ArrayList<>();
-            for (int i = (int) (fromSlot - sBack); i <= toSlot - sBack; ++i) {
-                if (i < 0 || i >= CYCLE_LENGTH * 2) return InvalidAttestations;
-                parentHashes.add(recentBlockHashes.get(i));
-            }
-            parentHashes.addAll(attestation.getObliqueParentHashes());
-
-            int slotOffset = (int) (attestation.getSlot() - data.state.getValidatorSetChangeSlot());
+            int slotOffset = (int) (signedData.getSlot() - data.state.getValidatorSetChangeSlot());
             List<Committee.Index> attestationIndices = scanCommittees(
-                    data.state.getCommittees(), slotOffset, attestation.getShardId());
+                    data.state.getCommittees(), slotOffset, signedData.getShardId());
 
             // Validate bitfield
             if (attestation.getAttesterBitfield().size() != Bitfield.calcLength(attestationIndices.size())) {
@@ -169,10 +172,7 @@ public class AttestationsValidator implements BeaconValidator {
                 }
             }
 
-            byte[] msgHash = BeaconUtils.calcMessageHash(attestation.getSlot(), parentHashes,
-                    attestation.getShardId(), attestation.getShardBlockHash(), attestation.getJustifiedSlot());
-
-            if (!data.sign.verify(attestation.getAggregateSig(), msgHash, data.sign.aggPubs(pubKeys))) {
+            if (!data.sign.verify(attestation.getAggregateSig(), signedData.getHash(), data.sign.aggPubs(pubKeys))) {
                 return InvalidAttestations;
             }
         }

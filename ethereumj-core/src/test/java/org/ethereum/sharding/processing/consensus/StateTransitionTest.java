@@ -34,7 +34,6 @@ public class StateTransitionTest {
             public BeaconState applyBlock(Beacon block, BeaconState to) {
                 BeaconState ret = to;
                 if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
-                    ret = finalityTransition().applyBlock(block, ret);
                     ValidatorSet validators = validatorTransition(validator).applyBlock(block, ret.getValidatorSet());
                     ret = ret.withValidatorSet(validators);
                 }
@@ -53,10 +52,6 @@ public class StateTransitionTest {
         assertEquals(getExpected(b4, validator), transitionFunction.applyBlock(b4, getOrigin()));
     }
 
-    StateTransition<BeaconState> finalityTransition() {
-        return (block, to) -> to.withFinality(10L, 10L, 10L);
-    }
-
     StateTransition<ValidatorSet> validatorTransition(Validator validator) {
         return (block, to) -> {
             to.add(validator);
@@ -68,7 +63,6 @@ public class StateTransitionTest {
         ValidatorSet validatorSet = validatorTransition(validator).applyBlock(block,
                 new TrieValidatorSet(new HashMapDB<>(), new HashMapDB<>()));
         BeaconState ret = getOrigin().withValidatorSet(validatorSet);
-        ret = finalityTransition().applyBlock(block, ret);
         return ret.increaseLastStateRecalc(BeaconConstants.CYCLE_LENGTH);
     }
 

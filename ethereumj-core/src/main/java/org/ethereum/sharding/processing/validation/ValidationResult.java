@@ -28,6 +28,7 @@ public enum ValidationResult {
     NoParent,
     StateMismatch,
     InvalidAttestations,
+    InvalidProposerSignature,
     Success;
 
     public boolean isSuccess() {

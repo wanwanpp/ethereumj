@@ -48,7 +48,7 @@ public class FlattenedState {
     /* Slot of last validator set change */
     private final long validatorSetChangeSlot;
     /* Attestations that have not yet been processed */
-    private final List<AttestationRecord> pendingAttestations;
+    private final List<ProcessedAttestation> pendingAttestations;
     /* Most recent 2 * CYCLE_LENGTH block hashes, older to newer */
     private final List<byte[]> recentBlockHashes;
     /* RANDAO state */
@@ -59,7 +59,7 @@ public class FlattenedState {
     public FlattenedState(byte[] validatorSetHash, long lastStateRecalc, Committee[][] committees, long lastJustifiedSlot,
                           long justifiedStreak, long lastFinalizedSlot, Crosslink[] crosslinks,
                           byte[] nextShufflingSeed, long validatorSetChangeSlot, byte[] randaoMix,
-                          List<byte[]> recentBlockHashes, List<AttestationRecord> pendingAttestations,
+                          List<byte[]> recentBlockHashes, List<ProcessedAttestation> pendingAttestations,
                           long genesisTime) {
         this.validatorSetHash = validatorSetHash;
         this.lastStateRecalc = lastStateRecalc;
@@ -119,7 +119,7 @@ public class FlattenedState {
         if (!isSingleZero(list.get(9).getRLPData())) {
             RLPList attestationList = RLP.unwrapList(list.get(9).getRLPData());
             for (RLPElement attestationRlp : attestationList)
-                pendingAttestations.add(new AttestationRecord(attestationRlp.getRLPData()));
+                pendingAttestations.add(new ProcessedAttestation(attestationRlp.getRLPData()));
         }
 
         this.recentBlockHashes = new ArrayList<>();
@@ -213,7 +213,7 @@ public class FlattenedState {
         return validatorSetChangeSlot;
     }
 
-    public List<AttestationRecord> getPendingAttestations() {
+    public List<ProcessedAttestation> getPendingAttestations() {
         return pendingAttestations;
     }
 

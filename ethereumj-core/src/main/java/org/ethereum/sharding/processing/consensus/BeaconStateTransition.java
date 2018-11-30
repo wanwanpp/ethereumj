@@ -53,8 +53,8 @@ public class BeaconStateTransition implements StateTransition<BeaconState> {
     public BeaconState applyBlock(Beacon block, BeaconState to) {
         BeaconState ret = to;
 
+        ret = ret.addPendingAttestationsFromBlock(block);
         block.getAttestations().forEach(at -> publisher.publish(onBeaconAttestationIncluded(at)));
-        ret = ret.addPendingAttestations(block.getAttestations());
 
         if (block.getSlotNumber() - ret.getLastStateRecalculationSlot() >= CYCLE_LENGTH) {
             logger.info("Process cycle transition, slot: {}, prev slot: {}",
