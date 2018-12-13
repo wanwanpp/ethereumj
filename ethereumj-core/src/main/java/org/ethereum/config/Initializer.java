@@ -42,11 +42,12 @@ class Initializer implements BeanPostProcessor {
     private DatabaseVersionHandler databaseVersionHandler = new DatabaseVersionHandler();
 
     /**
-     * Method to be called right after the config is instantiated.
-     * Effectively is called before any other bean is initialized
+     * Method to be called right after the config is instantiated. Effectively is called before any other bean is
+     * initialized
      */
     private void initConfig(SystemProperties config) {
-        logger.info("Running {},  core version: {}-{}", config.genesisInfo(), config.projectVersion(), config.projectVersionModifier());
+        logger.info("Running {},  core version: {}-{}", config.genesisInfo(), config.projectVersion(),
+            config.projectVersionModifier());
         BuildInfo.printInfo();
 
         databaseVersionHandler.process(config);
@@ -76,7 +77,7 @@ class Initializer implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof SystemProperties) {
-            initConfig((SystemProperties) bean);
+            initConfig((SystemProperties)bean);
         }
         return bean;
     }
@@ -87,27 +88,29 @@ class Initializer implements BeanPostProcessor {
     }
 
     /**
-     * We need to persist the DB version, so after core upgrade we can either reset older incompatible db
-     * or make a warning and let the user reset DB manually.
-     * Database version is stored in ${database}/version.properties
-     * Logic will assume that database has version 1 if file with version is absent.
+     * We need to persist the DB version, so after core upgrade we can either reset older incompatible db or make a
+     * warning and let the user reset DB manually. Database version is stored in ${database}/version.properties Logic
+     * will assume that database has version 1 if file with version is absent.
      */
     public static class DatabaseVersionHandler {
 
         public enum Behavior {
-            EXIT, RESET, IGNORE
+            EXIT,
+            RESET,
+            IGNORE
         }
 
         public void process(SystemProperties config) {
 
-            if (config.getKeyValueDataSource().equals("leveldb"))
+            if (config.getKeyValueDataSource().equals("leveldb")) {
                 Utils.showWarn(
-                        "Deprecated database engine detected",
-                        "'leveldb' support will be removed in one of the next releases",
-                        "thus it is strongly recommended to stick with 'rocksdb' instead"
+                    "Deprecated database engine detected",
+                    "'leveldb' support will be removed in one of the next releases",
+                    "thus it is strongly recommended to stick with 'rocksdb' instead"
                 );
+            }
 
-            if (config.databaseReset() && config.databaseResetBlock() == 0){
+            if (config.databaseReset() && config.databaseResetBlock() == 0) {
                 FileUtil.recursiveDelete(config.databaseDir());
                 putDatabaseVersion(config, config.databaseVersion());
                 logger.info("Database reset done");
@@ -116,8 +119,7 @@ class Initializer implements BeanPostProcessor {
 
             final File versionFile = getDatabaseVersionFile(config);
             final Behavior behavior = Behavior.valueOf(
-                    config.getProperty("database.incompatibleDatabaseBehavior", Behavior.EXIT.toString()).toUpperCase());
-
+                config.getProperty("database.incompatibleDatabaseBehavior", Behavior.EXIT.toString()).toUpperCase());
 
             // Detect database version
             final Integer expectedVersion = config.databaseVersion();
@@ -133,12 +135,14 @@ class Initializer implements BeanPostProcessor {
                 if (actualVersion.equals(expectedVersion) || (isVersionFileNotFound && expectedVersion.equals(1))) {
                     logger.info("Database directory location: '{}', version: {}", config.databaseDir(), actualVersion);
                 } else {
-                    logger.warn("Detected incompatible database version. Detected:{}, required:{}", actualVersion, expectedVersion);
+                    logger.warn("Detected incompatible database version. Detected:{}, required:{}", actualVersion,
+                        expectedVersion);
                     if (behavior == Behavior.EXIT) {
                         Utils.showErrorAndExit(
-                                "Incompatible database version " + actualVersion,
-                                "Please remove database directory manually or set `database.incompatibleDatabaseBehavior` to `RESET`",
-                                "Database directory location is " + config.databaseDir()
+                            "Incompatible database version " + actualVersion,
+                            "Please remove database directory manually or set `database.incompatibleDatabaseBehavior`"
+                                + " to `RESET`",
+                            "Database directory location is " + config.databaseDir()
                         );
                     } else if (behavior == Behavior.RESET) {
                         boolean res = FileUtil.recursiveDelete(config.databaseDir());
@@ -164,8 +168,8 @@ class Initializer implements BeanPostProcessor {
         }
 
         /**
-         * @return database version stored in specific location in database dir
-         *         or -1 if can't detect version due to error
+         * @return database version stored in specific location in database dir or -1 if can't detect version due to
+         * error
          */
         public Integer getDatabaseVersion(File file) {
             if (!file.exists()) {
